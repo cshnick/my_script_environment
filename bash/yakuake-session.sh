@@ -52,14 +52,13 @@ function dbus_settitle {
 }
 
 function dbus_showwindow {
-  
-  
-  if [[ $? -eq 0 ]]; then
-    interface="com.trolltech.Qt.QWidget"
-  else
+  #if [[ $? -eq 0 ]]; then
+  #  interface="com.trolltech.Qt.QWidget"
+  #else
     interface="org.qtproject.Qt.QWidget"
-  fi
+  #fi
   ws=$(qdbus org.kde.yakuake /yakuake/MainWindow_1 Get $interface visible)
+  echo $ws
   if [[ $? -eq 0 && "$ws" == "false" ]]; then
     qdbus org.kde.yakuake /yakuake/window toggleWindowState > /dev/null
   fi
