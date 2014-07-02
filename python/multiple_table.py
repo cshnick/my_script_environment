@@ -48,8 +48,8 @@ def ST_handler(signum, frame):
 def main():
   signal.signal(signal.SIGINT, ST_handler)
   while True:
-    r1 = r1=random.randint(0, 4)
-    r2 = random.randint(0, 9)
+    r1 = r1=random.randint(2, 4)
+    r2 = random.randint(2, 9)
     Ask().do_ask(r1, r2, toplevel=True)
   
 if __name__ == '__main__':
