@@ -10,6 +10,8 @@ import os
 import external.texttable as tt
 
 os.environ['AE_DELEGATES_PATH'] = os.getcwd() + "/achivement_engine/Delegates"
+os.environ['VERBOSE'] = '1'
+
 v_mul_table = 'Таблица умножения'
 v_show_statistics = 'Статистика'
 v_show_achievements = 'Достижения'
@@ -26,7 +28,7 @@ class SimpleCompleter(object):
         return
 
     def complete(self, text, state):
-        response = None
+        # response = None
         if state == 0:
             # This is the first time for this text, so build a match list.
             if text:
@@ -44,119 +46,117 @@ class SimpleCompleter(object):
             response = None
         return response
 
+
 class Ask:
-  great = 0
-  good = 0
-  total = 0
-  e = Ae.EngineImpl()
-  @staticmethod
-  def print_stat():
-    print 'exit'
-    print Color('Всего попыток: ').as_cyan() + Color(str(Ask.total)).as_white()
-    print Color('=================').as_white()
-    print Color('Отлично:       ').as_green() + Color(str(Ask.great)).as_white()
-    print Color('Неплохо:       ').as_yellow() + Color(str(Ask.good)).as_white()
-    print Color('Ошибок:        ').as_purple() + Color(str(Ask.total - Ask.great - Ask.good)).as_white()
+    great = 0
+    good = 0
+    total = 0
+    e = Ae.EngineImpl()
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def print_stat():
+        print 'exit'
+        print Color('Всего попыток: ').as_cyan() + Color(str(Ask.total)).as_white()
+        print Color('=================').as_white()
+        print Color('Отлично:       ').as_green() + Color(str(Ask.great)).as_white()
+        print Color('Неплохо:       ').as_yellow() + Color(str(Ask.good)).as_white()
+        print Color('Ошибок:        ').as_purple() + Color(str(Ask.total - Ask.great - Ask.good)).as_white()
 
 
-  @staticmethod
-  def add_action(ans, right, str):
-      cxx_dct = Ae.map_sv()
-      cxx_dct[f_statement] = Ae.variant(str)
-      cxx_dct[f_result] = Ae.variant(ans)
-      cxx_dct[f_success] = Ae.variant(right)
-      Ask.e.addAction(cxx_dct)
+    @staticmethod
+    def add_action(ans, right, str):
+        cxx_dct = Ae.map_sv()
+        cxx_dct[f_statement] = Ae.variant(str)
+        cxx_dct[f_result] = Ae.variant(ans)
+        cxx_dct[f_success] = Ae.variant(right)
+        Ask.e.addAction(cxx_dct)
+
+    @staticmethod
+    def ask_mt(r1, r2):
+        question = '' + str(r1) + 'x' + str(r2) + '='
+        ans = raw_input(question)
+        if not ans:
+            Ask.e.end()
+            Ask.print_stat()
 
 
-  @staticmethod
-  def ask_mt(r1, r2):
-    question = '' + str(r1) + 'x' + str(r2) + '='
-    ans = raw_input(question)
-    if not ans:
-      Ask.e.end()
-      Ask.print_stat()
+            raise Exception("End of mul table checking")
+        right = r1*r2
+        Ask.add_action(ans=ans, right=(int(right) == int(ans)), str=question)
 
-      raise Exception("End of mul table checking")
-    right = r1*r2
-    Ask.add_action(ans=ans, right=right, str=question)
+        return ans, right
 
-    return ans, right
+    @staticmethod
+    def do_ask_mt(r1, r2, toplevel=True):
+        (ans, right) = Ask.ask_mt(r1, r2)
+        Ask.total += 1
+        if int(right) == int(ans):
+            mesge = 'Крутяк!!!!' if toplevel else 'Неплохо, но можно было бы и с первой попытки'
+            col = 'green' if toplevel else 'yellow'
+            print Color(mesge).as_color(col)
+            if toplevel:
+                Ask.great += 1
+            else:
+                Ask.good += 1
+        else:
+            print Color('Попробуй еще раз').as_purple()
+            Ask.do_ask_mt(r1, r2, toplevel=False)
 
-  @staticmethod
-  def do_ask_mt(r1, r2, toplevel=True):
-    (ans, right) = Ask.ask_mt(r1, r2)
-    Ask.total += 1
-    if int(right) == int(ans):
-      mesge = 'Крутяк!!!!' if toplevel else 'Неплохо, но можно было бы и с первой попытки'
-      col = 'green' if toplevel else 'yellow'
-      print Color(mesge).as_color(col)
-      if toplevel:
-        Ask.great += 1
-      else:
-          Ask.good += 1
-    else:
-      print Color('Попробуй еще раз').as_purple()
-      Ask.do_ask_mt(r1, r2, toplevel=False)
+    @staticmethod
+    def mul_table_loop():
+        Ask.e.begin()
+        while True:
+            r1 = random.randint(2, 9)
+            r2 = random.randint(2, 9)
+            try:
+                Ask.do_ask_mt(r1, r2, toplevel=True)
+            except:
+                break
 
-  @staticmethod
-  def mul_table_loop():
-      Ask.e.begin()
-      while True:
-        r1 = random.randint(2, 9)
-        r2 = random.randint(2, 9)
+    @staticmethod
+    def do_ask_choice():
+        sans = Color('Что будем делать?').as_yellow()
         try:
-            Ask.do_ask_mt(r1, r2, toplevel=True)
-        except:
-            break
+            ans = raw_input(sans + ' (Просто нажми ввод,  чтобы Начать работать с таблицей умножения)\n')
+        except ValueError:
+            return False
+        if not ans:
+            ans = v_mul_table
+            print ans
 
-  @staticmethod
-  def do_ask_choice():
-      str = Color('Что будем делать?').as_yellow()
-      ans = raw_input( str + ' (Просто нажми ввод,  чтобы Начать работать с таблицей умножения)\n')
-      if ans == '' :
-          ans = v_mul_table
-          print ans
+        if ans == v_mul_table:
+            print Color("------------------").as_green()
+            Ask.mul_table_loop()
+        elif ans == v_stop:
+            Ask.e.dropTables()
+            return False
 
-      if ans == v_mul_table:
-          print Color("------------------").as_green()
-          Ask.mul_table_loop()
-      elif ans == v_stop:
-          return False
+        return True
 
-      return True
 
-    
-def ST_handler(signum, frame):
+def st_handler(signum, frame):
     Ask.e.end()
     Ask.print_stat()
-
     exit(0)
-  
+
+
 def main():
-  signal.signal(signal.SIGINT, ST_handler)
-  # Register our completer function
-  readline.set_completer(SimpleCompleter([v_mul_table,
-                                          v_show_statistics,
-                                          v_show_achievements,
-                                          'Стоп'])
-                         .complete)
-  # Use the tab key for completion
-  readline.parse_and_bind('tab: complete')
-  res = True
-  while res:
-      res = Ask.do_ask_choice()
+    signal.signal(signal.SIGINT, st_handler)
+    # Register our completer function
+    readline.set_completer(SimpleCompleter([v_mul_table,
+                                            v_show_statistics,
+                                            v_show_achievements,
+                                            v_stop])
+                           .complete)
+    # Use the tab key for completion
+    readline.parse_and_bind('tab: complete')
+    res = True
+    while res:
+        res = Ask.do_ask_choice()
 
-  # a = Ae.EngineImpl()
-  # a.begin()
-  # dct = dict()
-  # dct['a'] = Ae.variant('b')
-  # dct['b'] = Ae.variant('c')
-  # dct['e'] = Ae.variant('f')
-  # cxx_dct = Ae.map_sv(dct)
-  # cxx_dct['g'] = Ae.variant('h')
-  # a.addAction(cxx_dct)
-  # a.end()
 
-  
 if __name__ == '__main__':
-  main()
+    main()
