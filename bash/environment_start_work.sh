@@ -1,9 +1,11 @@
 # !bin/bash
 
-yakuake-session -q -t "build64" --hold --workdir /home/ilia/Prognoz/PP7Linux/DEV8_23june2014/build64 -e 'export CPLUS_INCLUDE_PATH=/usr/lib64/glib-2.0/include && clear' 1>/dev/null 2>/dev/null  
-yakuake-session -q -t "bin" --hold --workdir /home/ilia/Prognoz/PP7Linux/DEV8_23june2014/build64/bin -e 'clear' >/dev/null &
-qdbus org.kde.yakuake /yakuake/tabs setTabTitle 0 "Start" 1>/dev/null 2>/dev/null &
-qdbus org.kde.yakuake /yakuake/tabs sessionAtTab 2 1>/dev/null 2>/dev/null &
+yakuake-session -q -t "build64" --hold --workdir /home/ilia/Prognoz/P7/DEV8/build64 -e 'export CPLUS_INCLUDE_PATH=/usr/lib64/glib-2.0/include:/opt/gcc471/include PATH=/opt/gcc471/bin:$PATH LD_LIBRARY_PATH=/opt/gcc471/lib64:$LD_LIBRARY_PATH && clear' 1>/dev/null 2>/dev/null  
+yakuake-session -q -t "bin" --hold --workdir /home/ilia/Prognoz/P7/DEV8/build64/bin -e 'clear' >/dev/null
+yakuake-session -q -t "build32" --hold --workdir /home/ilia/Prognoz/P7/DEV8/build32 -e 'export CPLUS_INCLUDE_PATH=/usr/lib64/glib-2.0/include:/opt/gcc471/include PATH=/opt/gcc471/bin:$PATH LD_LIBRARY_PATH=/opt/gcc471/lib:$LD_LIBRARY_PATH     && clear' 1>/dev/null 2>/dev/null
+yakuake-session -q -t "bin32" --hold --workdir /home/ilia/Prognoz/P7/DEV8/build32/bin -e 'clear' >/dev/null
+qdbus org.kde.yakuake /yakuake/tabs setTabTitle 0 "Start" 1>/dev/null 2>/dev/null
+qdbus org.kde.yakuake /yakuake/tabs sessionAtTab 2 1>/dev/null 2>/dev/null
 
 
 krusader 1>/dev/null 2>/dev/null &
