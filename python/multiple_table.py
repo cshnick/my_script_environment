@@ -9,6 +9,7 @@ import achivement_engine.AeCore as Ae
 import os
 import external.texttable as tt
 
+
 os.environ['AE_DELEGATES_PATH'] = os.getcwd() + "/achivement_engine/Delegates"
 os.environ['VERBOSE'] = '1'
 
@@ -20,6 +21,18 @@ v_stop = 'Стоп'
 f_statement = "Statement"
 f_result = "Result"
 f_success = "Success"
+
+f_id = "id"
+f_ach_id = "AchivementId"
+f_start = "Start"
+f_finish = "Finish"
+f_time = "Time"
+f_actTime = "ActionTime"
+f_session = "Session"
+f_name = "Name"
+f_session_id = "SessionId"
+f_description = "Description"
+f_condition = "Condition"
 
 class SimpleCompleter(object):
 
@@ -75,17 +88,29 @@ class Ask:
         Ask.e.addAction(cxx_dct)
 
     @staticmethod
+    def print_achievements(p_achievements):
+        for k in p_achievements:
+            table = tt.Texttable()
+            strg =  "Заработано достижение %s" % k[f_name].toString()
+            table.add_row([strg,])
+            print(table.draw())
+            print(Color(k[f_description].toString()).as_cyan())
+
+        return True
+
+    @staticmethod
     def ask_mt(r1, r2):
         question = '' + str(r1) + 'x' + str(r2) + '='
         ans = raw_input(question)
         if not ans:
             Ask.e.end()
             Ask.print_stat()
-
-
             raise Exception("End of mul table checking")
+
         right = r1*r2
         Ask.add_action(ans=ans, right=(int(right) == int(ans)), str=question)
+        achieves = Ask.e.take_ach_params()
+        Ask.print_achievements(p_achievements=achieves)
 
         return ans, right
 
