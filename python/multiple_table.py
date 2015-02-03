@@ -10,7 +10,7 @@ import os
 import external.texttable as tt
 
 
-os.environ['AE_DELEGATES_PATH'] = os.getcwd() + "/achivement_engine/Delegates"
+os.environ['AE_DELEGATES_PATH'] = os.getcwd() + "/achivement_engine/Calcs"
 os.environ['VERBOSE'] = '1'
 
 v_mul_table = 'Таблица умножения'
