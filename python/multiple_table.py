@@ -5,7 +5,7 @@ import random
 import readline
 from color.colorize import Color
 import signal
-import achivement_engine.AeCore as Ae
+import achivement_engine.PyAeCore as Ae
 import os
 import external.texttable as tt
 
@@ -65,6 +65,7 @@ class Ask:
     good = 0
     total = 0
     e = Ae.EngineImpl()
+    e.init("Таблица умножения", "Илья")
 
     def __init__(self):
         pass
