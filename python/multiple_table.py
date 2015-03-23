@@ -5,18 +5,20 @@ import random
 import readline
 from color.colorize import Color
 import signal
-import achivement_engine.AeCore as Ae
+import achivement_engine.PyAeCore as Ae
 import os
 import external.texttable as tt
 
 
-os.environ['AE_DELEGATES_PATH'] = os.getcwd() + "/achivement_engine/Delegates"
+os.environ['AE_DELEGATES_PATH'] = os.getcwd() + "/achivement_engine/Calcs"
 os.environ['VERBOSE'] = '1'
 
 v_mul_table = 'Таблица умножения'
 v_show_statistics = 'Статистика'
 v_show_achievements = 'Достижения'
 v_stop = 'Стоп'
+v_new_user = 'Новый пользователь'
+v_new_project = 'Новый проект'
 
 f_statement = "Statement"
 f_result = "Result"
@@ -33,6 +35,30 @@ f_name = "Name"
 f_session_id = "SessionId"
 f_description = "Description"
 f_condition = "Condition"
+
+
+class MTGenerator(object):
+    def __init__(self):
+        self.__mt = []
+        self.__gen_mt()
+
+    def __gen_mt(self):
+        random.seed()
+        for i in range(2, 10):
+            for j in range(2, 10):
+                self.__mt.append((i, j))
+
+    def get_random(self):
+        if not self.__mt:
+            print Color('Ты прошел всю таблицу умножения, начинаем заново!').as_blue()
+            self.__gen_mt()
+        mt_length = self.__mt.__len__()
+        rand_index = random.randint(0, mt_length - 1)
+        mul_pair = self.__mt[rand_index]
+        del self.__mt[rand_index]
+
+        return mul_pair
+
 
 class SimpleCompleter(object):
 
@@ -132,10 +158,11 @@ class Ask:
 
     @staticmethod
     def mul_table_loop():
+        mtg = MTGenerator()
+        Ask.e.init("Таблица умножения", "Илья")
         Ask.e.begin()
         while True:
-            r1 = random.randint(2, 9)
-            r2 = random.randint(2, 9)
+            r1, r2 = mtg.get_random()
             try:
                 Ask.do_ask_mt(r1, r2, toplevel=True)
             except:
@@ -155,9 +182,14 @@ class Ask:
         if ans == v_mul_table:
             print Color("------------------").as_green()
             Ask.mul_table_loop()
+
         elif ans == v_stop:
             Ask.e.dropTables()
             return False
+        elif ans == v_new_user:
+            Ask.e.addUser('Игорек', '')
+        elif ans == v_new_project:
+            Ask.e.addProject(v_mul_table)
 
         return True
 
@@ -174,6 +206,8 @@ def main():
     readline.set_completer(SimpleCompleter([v_mul_table,
                                             v_show_statistics,
                                             v_show_achievements,
+                                            v_new_user,
+                                            v_new_project,
                                             v_stop])
                            .complete)
     # Use the tab key for completion
