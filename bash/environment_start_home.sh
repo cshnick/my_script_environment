@@ -9,5 +9,6 @@ yakuake-session -q -t "ae server" --hold --workdir "/home/ilia/Development/to_so
 yakuake-session -q -t "ae src" --hold --workdir "/home/ilia/Development/to_sort/Achivement_Engine/engine" -e 'clear' 1>/dev/null 2>/dev/null
 qdbus org.kde.yakuake /yakuake/tabs setTabTitle 0 "Start" 1>/dev/null 2>/dev/null
 qdbus org.kde.yakuake /yakuake/tabs sessionAtTab 2 1>/dev/null 2>/dev/null
+#bluedevil-monolithic
 #sleep 10 
 #reload-compositor &
