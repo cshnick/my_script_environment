@@ -45,11 +45,40 @@ if height_count > 0:
     average_height = height_total / height_count
     print(Color("Avegate height: {0}".format(average_height)).as_blue())
 
-#(ttl, cnt) = reduce(lambda (ta, ca), x: print(x['рост']), people, (0, 0))
+def filter_person(p_person):
+    if 'рост' in p_person:
+        return True
+    return False
 
-# print("total: {0}".format(ttl))
-# print("count: {0}".format(cnt))
+have_height = filter(lambda p: True if 'рост' in p else False, people)
+[print('Next person: {0}'.format(res)) for res in have_height]
+
+def reduce_func((hei, cnt), nxt):
+    hei += nxt['рост']
+    cnt += 1
+
+    return hei, cnt
+
+hei, cnt = reduce(reduce_func, have_height, (0, 0))
+print("Reduce result:\n\thei: %s\n\tcnt: %s" % (hei, cnt))
+
+from random import random
+time = 5
+car_positions = [1, 1, 1]
+
+while time:
+    # decrease time
+    time -= 1
+
+    print('')
+    for i in range(len(car_positions)):
+        # move car
+        if random() > 0.3:
+            car_positions[i] += 1
+
+        # draw car
+        #print('-' * car_positions[i])
+
 
 import clipboard
-
 clipboard.copy("Pwd")
