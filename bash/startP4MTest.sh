@@ -2,10 +2,11 @@
 
 . $MY_SCRIPT_SOURCE/bash/color/colorize.sh
 
-DEFAULT_BIN="/home/ilia/Prognoz/PP7Linux/DEV8_12may2014/build64/bin"
+DEFAULT_BIN="/home/ilia/Prognoz/P7/DEV8/build64/bin"
 DEFAULT_P4M_HOME="${DEFAULT_BIN}/../../Tst/Pck"
 DEFAULT_EXEC=WebTestCpp
 DEFAULT_TEXT_EDITOR=kwrite
+DEFAULT_ORACLE_HOME=/home/ilia/Prognoz/instantclient_11_2
 
 if [[ -z $BIN_HOME ]] ; then
   BIN_HOME=$DEFAULT_BIN
@@ -19,6 +20,10 @@ fi
 if [[ -z $TEXT_EDITOR ]] ; then
   TEXT_EDITOR=$DEFAULT_TEXT_EDITOR
 fi
+if [[ -z $ORACLE_HOME ]] ; then
+ export ORACLE_HOME=$DEFAULT_ORACLE_HOME
+fi
+	   
 DOOPENSCRIPT=
 DOOPENLOG=
 
@@ -126,6 +131,7 @@ cd "$BIN_HOME"
 color "Executing $EXECUTE $FULL_NAME..." green
 
 export LC_ALL="ru_RU.utf8"
+export LD_LIBRARY_PATH="$ORACLE_HOME:$LD_LIBRARY_PATH"
 exec "$BIN_HOME/$EXECUTE" $FULL_NAME
 
 #ret=$(checkexists $fullname)

@@ -130,6 +130,7 @@ class Ask:
         question = '' + str(r1) + 'x' + str(r2) + '='
         ans = raw_input(question)
         if not ans:
+            session_achs = Ask.e.session_achievements()
             Ask.e.end()
             Ask.print_stat()
             raise Exception("End of mul table checking")
