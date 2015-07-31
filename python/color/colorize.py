@@ -15,7 +15,7 @@ def colorize(color, set_it=True):
     def color_decorator(str_func):
         def wrapped(*args, **kwargs):
             if set_it:
-                return color + str_func(*args, **kwargs) + term_color.reset
+                return term_color.__dict__[color] + str_func(*args, **kwargs) + term_color.reset
             else:
                 return str_func(*args, **kwargs)
         return wrapped
@@ -29,7 +29,7 @@ class Color():
 
     def as_color(self, str_color):
         if hasattr(term_color, str_color):
-            @colorize(term_color.__dict__[str_color])
+            @colorize(str_color)
             def iter_func(self):
                 return self.text
             return iter_func(self)
@@ -38,10 +38,13 @@ class Color():
 
 def generate_color_function(str_method):
     if hasattr(term_color, str_method):
-        @colorize(term_color.__dict__[str_method])
+        @colorize(str_method)
         def iter_func(self):
              return self.text
         setattr(Color, "as_" + str_method, iter_func)
 
+
 # For each "color" from term_color create function "as_color" to represent a special color for string
 [generate_color_function(nMethod) for nMethod in dir(term_color) if not nMethod.startswith("__") and not nMethod == "reset"]
+
+

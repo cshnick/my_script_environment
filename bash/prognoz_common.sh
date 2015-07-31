@@ -48,7 +48,7 @@ done
 
 if [[ -n $GEN_CMAKE ]] ; then
     echo 'Generating cmake...'
-    PATH=$KEPLER_PATH:$PATH cmake -G"Eclipse CDT4 - Unix Makefiles" .
+    CC="distcc gcc-4.7.1" CXX="distcc g++-4.7.1" PATH=$KEPLER_PATH:$PATH cmake -G"Eclipse CDT4 - Unix Makefiles" -D NO_LICENSE=TRUE -D ROOT_IS64BIT=TRUE -D COMPILING_NO_STATCORE=TRUE .
     #removing all 'tag links'
     sed -i -e ':a;N;$!ba' -e 's#<link>.*</link>##' .project
     mkdir build64 1>&2 >/dev/null
