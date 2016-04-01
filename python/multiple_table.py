@@ -161,7 +161,7 @@ class Ask:
     @staticmethod
     def mul_table_loop():
         mtg = MTGenerator()
-        Ask.e.init("Таблица умножения", "Илья")
+        Ask.e.init("Таблица умножения", "Игорек")
         Ask.e.begin()
         while True:
             r1, r2 = mtg.get_random()
