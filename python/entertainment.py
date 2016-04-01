@@ -8,6 +8,7 @@ from color.colorize import Color
 import random
 import sys
 import time
+import mutagen.mp3 as mp3
 
 class Functional(object):
     def __init__(self):
@@ -76,18 +77,22 @@ class CarsGame(object):
 
     @staticmethod
     def imperative_run():
-        time = 5
+        cycles = 5
         car_positions = [1, 1, 1]
+        printer = Utils.LinePrinter(line_nums=3)
 
-        while time:
+        while cycles:
             # decrease time
-            time -= 1
+            cycles -= 1
 
             print('')
             for i in range(len(car_positions)):
                 # move car
                 if random.random() > 0.3:
                     car_positions[i] += 1
+
+            printer.set_text(line_pos=2, text='special test')
+            time.sleep(0.5)
 
 def template_print_required(func):
     def wrapper(self, *args, **kwargs):
@@ -183,15 +188,8 @@ class Utils(object):
             map(lambda x: sys.stdout.write('{0}\n'.format(x)), self.template)
 
 def main():
-    printer = Utils.LinePrinter(3)
-    printer.set_text(text='Test_text', line_pos=1)
-    time.sleep(1)
-    printer.set_text(text='Test_text1', line_pos=2)
-    time.sleep(1)
-    printer.set_text(text='Test_text3', line_pos=0)
-    time.sleep(1)
+    metadata = mp3.Open('/home/ilia/Documents/3/02. Давай помолчим.mp3')
 
-    #printer.new_line()
 
 if __name__ == '__main__':
     main()
