@@ -2,7 +2,7 @@
 
 . $MY_SCRIPT_SOURCE/bash/color/colorize.sh
 
-DEFAULT_BIN="/home/ilia/Prognoz/P7/DEV8/build64/bin"
+DEFAULT_BIN="/home/ilia/Prognoz/P7/DEV8/build32/bin"
 DEFAULT_P4M_HOME="${DEFAULT_BIN}/../../Tst/Pck"
 DEFAULT_EXEC=WebTestCpp
 DEFAULT_TEXT_EDITOR=kwrite
