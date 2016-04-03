@@ -36,7 +36,7 @@
             <arg direction="in" type="s"/>
         </method>
         <method name="RemoveMatch">
-            <arg direction="in" type="s"/>
+        <arg direction="in" type="s"/>
         </method>
         <method name="GetNameOwner">
             <arg direction="in" type="s"/>
