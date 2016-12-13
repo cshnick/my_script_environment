@@ -13,6 +13,9 @@ yakuake-session -q -t "sm build" --hold --workdir /home/ilia/Development/cmake_s
 yakuake-session -q -t "nacl" --hold --workdir /home/ilia/Development/nacl/nacl_sdk/pepper_47 -e 'clear' >/dev/null
 yakuake-session -q -t "nacl ports" --hold --workdir /home/ilia/Development/nacl/webports_gclient -e 'clear' >/dev/null
 
+yakuake-session -q -t "POCO Server" --hold --workdir /home/ilia/Development/nacl/nc-ui-prototype/NcConsole/cmake-Poco/bin -e 'clear' >/dev/null
+yakuake-session -q -t "POCO Client" --hold --workdir /home/ilia/Development/nacl/nc-ui-prototype/NcConsole/cmake-Poco/bin -e 'clear' >/dev/null
+
 qdbus org.kde.yakuake /yakuake/tabs setTabTitle 0 "Start" 1>/dev/null 2>/dev/null
 qdbus org.kde.yakuake /yakuake/tabs sessionAtTab 2 1>/dev/null 2>/dev/null
 

@@ -3,7 +3,6 @@ __author__ = 'ilia'
 from dbus.mainloop.glib import DBusGMainLoop
 import dbus
 from enum import Enum
-import codegen
 import os.path as path
 import sys
 

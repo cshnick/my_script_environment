@@ -4,6 +4,7 @@ __author__ = 'ilia'
 from color.colorize import Color
 import argparse
 import os
+import os.path
 import subprocess
 import time
 
@@ -16,20 +17,25 @@ import dbus
 class RulesDict:
     #Callable methods
     #Begin
-    def newLeftTab(self):
-        self.__newTab(0)
-    def newRightTab(self):
-        self.__newTab(1)
+    def newLeftTab(self, *args):
+        self.__newTab(path=None, side=0)
+    def newRightTab(self, *args):
+        self.__newTab(path=None, side=1)
+    def openInDirectory(self, *args):
+        self.__newTab(path=os.path.abspath(args[0][0]), side=1)
+        pass
     #End callable methods
 
     ##### Helper functions #####
     #0 -left, 1-right
-    def __newTab(self, side):
+    def __newTab(self, path, side):
+        if not path:
+            path = os.getcwd()
         side_string = 'left' if side == 0 else 'right'
         def run_pm():
             return self.bus.get_object(self.krusader_name, '/Instances/krusader/' + side_string + '_manager')
         panel_manager = self.__retrieve_with_try(run_pm)
-        panel_manager.newTab(os.getcwd())
+        panel_manager.newTab(path)
         krusdr = self.bus.get_object(self.krusader_name, '/Instances/krusader')
         krusdr.isRunning()
 
@@ -52,11 +58,11 @@ class RulesDict:
             time.sleep(0.09)
         raise Exception('Ran out of time waiting for ' + self.krusader_name + 'to start.')
 
-    def invoke_rule(self, name):
+    def invoke_rule(self, name, *args):
         #print 'invoking %s' % name
         self.func = getattr(RulesDict, name)
         if self.func:
-            self.func(self)
+            self.func(self, *args)
 
     def __init__(self):
         self.bus = dbus.SessionBus()
@@ -70,14 +76,17 @@ def main():
     subparsers = parser.add_subparsers(help="file-like option")
 
     parser_search = subparsers.add_parser('dbus', help="search")
-    parser_search.add_argument('rule_name', help='Enter a rule for dbus subparser', nargs=1)
+    parser_search.add_argument('rule_name', help='Enter a rule for dbus subparser', nargs="+")
 
     args = parser.parse_args()
     rule_name = args.rule_name[0]
+    rule_args = args.rule_name
+    del rule_args[0]
+
+    print("Rule name: %s" % rule_name)
 
     rd = RulesDict()
-    rd.invoke_rule(rule_name)
-
+    rd.invoke_rule(rule_name, rule_args)
 
 if __name__ == "__main__":
     main()
