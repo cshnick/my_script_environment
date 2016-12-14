@@ -21,8 +21,8 @@ class RulesDict:
         self.__newTab(path=None, side=0)
     def newRightTab(self, *args):
         self.__newTab(path=None, side=1)
-    def openInDirectory(self, *args):
-        self.__newTab(path=os.path.abspath(args[0][0]), side=1)
+    def openInDirectory(self, args):
+        self.__newTab(path=os.path.abspath(args[1]), side=1)
         pass
     #End callable methods
 
@@ -58,11 +58,11 @@ class RulesDict:
             time.sleep(0.09)
         raise Exception('Ran out of time waiting for ' + self.krusader_name + 'to start.')
 
-    def invoke_rule(self, name, *args):
+    def invoke_rule(self, args):
         #print 'invoking %s' % name
-        self.func = getattr(RulesDict, name)
+        self.func = getattr(RulesDict, args[0])
         if self.func:
-            self.func(self, *args)
+            self.func(self, args)
 
     def __init__(self):
         self.bus = dbus.SessionBus()
@@ -71,22 +71,22 @@ class RulesDict:
 
 
 def main():
+    debug_mode = "DEBUG" in os.environ and os.environ["DEBUG"] != 0
+
     parser = argparse.ArgumentParser("DE interaction with krusader")
 
     subparsers = parser.add_subparsers(help="file-like option")
 
     parser_search = subparsers.add_parser('dbus', help="search")
-    parser_search.add_argument('rule_name', help='Enter a rule for dbus subparser', nargs="+")
+    parser_search.add_argument('rule_args', help='Enter a rule for dbus subparser', nargs="+")
 
     args = parser.parse_args()
-    rule_name = args.rule_name[0]
-    rule_args = args.rule_name
-    del rule_args[0]
 
-    print("Rule name: %s" % rule_name)
+    if debug_mode:
+        print("Rule name: %s" % args.rule_args)
 
     rd = RulesDict()
-    rd.invoke_rule(rule_name, rule_args)
+    rd.invoke_rule(args.rule_args)
 
 if __name__ == "__main__":
     main()
