@@ -22,7 +22,8 @@ class RulesDict:
     def newRightTab(self, *args):
         self.__newTab(path=None, side=1)
     def openInDirectory(self, args):
-        self.__newTab(path=os.path.abspath(args[1]), side=1)
+        local_side = 1 if len(args) < 3 else args[2]
+        self.__newTab(path=os.path.abspath(args[1]), side=local_side)
         pass
     #End callable methods
 
@@ -31,7 +32,7 @@ class RulesDict:
     def __newTab(self, path, side):
         if not path:
             path = os.getcwd()
-        side_string = 'left' if side == 0 else 'right'
+        side_string = 'left' if side == "0" else 'right'
         def run_pm():
             return self.bus.get_object(self.krusader_name, '/Instances/krusader/' + side_string + '_manager')
         panel_manager = self.__retrieve_with_try(run_pm)

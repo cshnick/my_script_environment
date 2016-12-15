@@ -5,11 +5,15 @@ function main {
     case $local_mime in
     inode/directory)
         case $1 in
-        \.git)
-            echo "Is this git?"
+        *\.git)
+            gitkraken -d `dirname "$1"` 1>/dev/null 2>/dev/null &
             ;;
         *)
-            krusader-rules dbus openInDirectory "$1"
+            side=1
+            if [[ -n "$2" ]] ; then
+                side="$2"
+            fi
+            krusader-rules dbus openInDirectory "$1" $side
             ;;
         esac
         ;;
