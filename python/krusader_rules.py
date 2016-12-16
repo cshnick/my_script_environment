@@ -17,9 +17,9 @@ import dbus
 class RulesDict:
     #Callable methods
     #Begin
-    def newLeftTab(self, *args):
+    def newLeftTab(self, args):
         self.__newTab(path=None, side=0)
-    def newRightTab(self, *args):
+    def newRightTab(self, args):
         self.__newTab(path=None, side=1)
     def openInDirectory(self, args):
         local_side = 1 if len(args) < 3 else args[2]
