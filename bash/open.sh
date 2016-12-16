@@ -41,7 +41,11 @@ function main {
         kwrite "$@"
         ;;
     *)
-        /usr/bin/xdg-open "$@"
+        if [[ ${1: -3} == ".sh" ]] ; then
+            kwrite $(realpath "$1") 1>/dev/null 2>/dev/null &
+        else
+            /usr/bin/xdg-open "$@"
+        fi
         ;;
     esac
 }
