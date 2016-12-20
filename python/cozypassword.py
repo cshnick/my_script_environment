@@ -1,8 +1,9 @@
-#!/bin/python
+#!/usr/bin/python
 
 import clipboard
 from argparse import ArgumentParser
 from cozy_password.resolver import ScandResolver
+from os import environ
 
 class CmdCozyPassword (object):
     def __init__(self, get_args=None):
@@ -25,7 +26,8 @@ class CmdCozyPassword (object):
 
 
     def main(self):
-        print("Clipboard content: %s" % clipboard.paste())
+        if "DEBUG" in environ:
+            print("Clipboard content: %s" % clipboard.paste())
 
 
 if __name__ == "__main__":

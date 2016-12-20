@@ -12,7 +12,6 @@ class ScandResolver(ResolverBase):
     __Dir_path = os.path.dirname(os.path.realpath(__file__))
 
     def password_for_name(self, name):
-        scand_map = {}
         if "DEBUG" in os.environ:
             print ("Dir path: %s" % ScandResolver.__Dir_path)
         with open(ScandResolver.__Dir_path + "/" + ScandResolver.__Filename) as scand_map_file:
