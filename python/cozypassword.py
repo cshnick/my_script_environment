@@ -15,20 +15,24 @@ class CmdCozyPassword (object):
         args = parser.parse_args()
 
         self.__get_args = args.getargs
-
-        if len(self.__get_args):
-            self.__process_get()
+        self.__resolver = ScandResolver()
 
 
     def __process_get(self):
         key = self.__get_args[0]
-        clipboard.copy(ScandResolver().password_for_name(key))
+        clipboard.copy(self.__resolver.password_for_name(key))
 
 
     def main(self):
+        self.__resolver.restore()
+
+        if len(self.__get_args):
+            self.__process_get()
+
+        #self.__resolver.save()
+
         if "DEBUG" in environ:
             print("Clipboard content: %s" % clipboard.paste())
-
 
 if __name__ == "__main__":
     cmd = CmdCozyPassword()
