@@ -39,4 +39,4 @@ def check_prev_char(password, current_char_set):
             return False
 
 if __name__ == '__main__':
-    print generate_pass()
+    print(generate_pass())

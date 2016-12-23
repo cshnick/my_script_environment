@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
-import simplejson as json
+import json
 import os
 import file_cryptor
-from cStringIO import StringIO
+from io import StringIO
 from contextlib import contextmanager
 from password_generator import generate_pass
-from decorator import decorator
 
 class ResolverBase(object):
     pass
@@ -19,13 +18,6 @@ def customopen(*args, **kwargs):
         yield stream
     finally:
         stream.close()
-
-@decorator
-def dec1(fn, *args, **kwargs):
-    if len(args) is 1:
-        return fn(args[0], **kwargs)
-    return fn(*args, **kwargs)
-
 
 def load_on_demand(method):
     def deco(self, *args, **kwargs):

@@ -1,3 +1,3 @@
-__all__ = ["resolver"]
+__all__ = ["resolver", "file_cryptor"]
 
-import resolver
+#import resolver

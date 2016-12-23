@@ -1,13 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import clipboard
+import pyperclip
 from argparse import ArgumentParser
 from cozy_password.resolver import ScandResolver
 from os import environ
 from os.path import basename
 import os
-import __builtin__
 
 class Const (object):
     Subprsr_name = 'subparser_name'
@@ -58,7 +57,7 @@ class CmdCozyPassword (object):
     def process_get(self):
         key = getattr(self.__args, Const.Get.Key, None)
         password = self.__resolver.password_for_name(key)
-        clipboard.copy(password)
+        pyperclip.copy(password)
 
     def process_add(self):
         key = getattr(self.__args, Const.Add.Key, None)
