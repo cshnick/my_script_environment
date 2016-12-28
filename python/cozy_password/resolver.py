@@ -1,11 +1,23 @@
 #!/usr/bin/env python
 
-import json
+from sys import version_info
+#python 2.x
+if version_info.major < 3:
+    from cStringIO import BytesIO
+    pass
+else:
+#python 3.x
+    from io import BytesIO
 import os
-import file_cryptor
-from io import StringIO
+import cozy_password.file_cryptor as file_cryptor
 from contextlib import contextmanager
-from password_generator import generate_pass
+from cozy_password.password_generator import generate_pass
+import logging as log
+import json
+
+log.basicConfig(level=log.DEBUG if 'DEBUG' in os.environ else log.WARNING,
+                format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 class ResolverBase(object):
     pass
@@ -13,7 +25,7 @@ class ResolverBase(object):
 #Open 'file' or 'buffer'
 @contextmanager
 def customopen(*args, **kwargs):
-    stream = open(*args) if type is 'file' else StringIO()
+    stream = open(*args) if type is 'file' else BytesIO()
     try:
         yield stream
     finally:
@@ -40,11 +52,10 @@ class ScandResolver(ResolverBase):
         self.__data = None
 
     @load_on_demand
-    def password_for_name(self, name, secondarg=None):
-        if "DEBUG" in os.environ:
-            print ("Dir path: %s" % ScandResolver.__Dir_path)
+    def password_for_name(self, name, default=None):
+        log.debug("Dir path: %s" % ScandResolver.__Dir_path)
         pairs = self.__data[ScandResolver.__Pairs]
-        password = None
+        password = default
         if name in pairs:
             password = pairs[name]
 
@@ -52,9 +63,7 @@ class ScandResolver(ResolverBase):
 
     @load_on_demand
     def add_password(self, key, password):
-        if "DEBUG" in os.environ:
-            print ("Inserting password")
-
+        log.debug("Inserting password")
         if password is None:
             password = generate_pass()
 
@@ -71,17 +80,18 @@ class ScandResolver(ResolverBase):
 
                 file_cryptor.encrypt(in_file=scand_map_file,
                                      out_file=scand_encrypted,
-                                     password="Qwerty#0")
+                                     password=b'Qwerty#0')
 
     def __load(self, *args, **kwargs):
-        with open(ScandResolver.__Encrypted_path, "r") as scand_encrypted:
+        with open(ScandResolver.__Encrypted_path, "rb") as scand_encrypted:
             with customopen(*args, **kwargs) as scand_map_file:
                 file_cryptor.decrypt(in_file=scand_encrypted,
                                      out_file=scand_map_file,
-                                     password="Qwerty#0")
+                                     password=b'Qwerty#0')
 
                 scand_map_file.seek(0)
-                self.__data = json.load(scand_map_file)
+                decoded = scand_map_file.read().decode('utf-8')
+                self.__data = json.loads(decoded)
 
 
     def save(self):
@@ -99,11 +109,15 @@ class ScandResolver(ResolverBase):
         pass
 
     def restore(self):
-        with open(ScandResolver.__Filename_path, "r") as scand_encrypted:
-            with open(ScandResolver.__Encrypted_path, "w") as scand_map_file:
+        with open(ScandResolver.__Filename_path, 'rb') as scand_encrypted:
+            with open(ScandResolver.__Encrypted_path, 'wb') as scand_map_file:
                 file_cryptor.encrypt(in_file=scand_encrypted,
                                      out_file=scand_map_file,
-                                     password="Qwerty#0")
+                                     password=b'Qwerty#0')
+
+    @load_on_demand
+    def data(self):
+        return self.__data
 
 
 

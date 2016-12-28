@@ -1,12 +1,18 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+#!/usr/bin/python3
 
-import pyperclip
+from sys import version_info
+#python 2.x
+if version_info.major < 3:
+    import clipboard as clip
+#pyrhon 3.x
+else:
+    import pyperclip as clip
+
 from argparse import ArgumentParser
 from cozy_password.resolver import ScandResolver
-from os import environ
 from os.path import basename
-import os
+import logging as log
+import json
 
 class Const (object):
     Subprsr_name = 'subparser_name'
@@ -19,6 +25,8 @@ class Const (object):
     class Get:
         Name = "get"
         Key = "Get.Key"
+    class Print:
+        Name = "print"
 
 class CmdCozyPassword (object):
     def __init__(self):
@@ -35,18 +43,14 @@ class CmdCozyPassword (object):
 
         parser_restore = subparsers.add_parser(Const.Restore.Name, help="Attempt to restore(debug only)")
 
+        parser_print = subparsers.add_parser(Const.Print.Name, help="Print as json")
+
         self.__args =  parser.parse_args()
         self.__resolver = ScandResolver()
-        parser.print_help()
 
-        #print(getattr(args, "add_password", None))
-        #print(getattr(args, "add_password1", None))
-
-        #self.__get_args = args.getargs
-        #self.__add_args = args.addargs
 
     def __process_args(self):
-        print("Self args: %s" % self.__args)
+        log.debug("Self args: %s" % self.__args)
         #Callback is starting from process_...
         name  = 'process_'+self.__args.__dict__[Const.Subprsr_name]
         callback = getattr(self, name)
@@ -56,8 +60,8 @@ class CmdCozyPassword (object):
 
     def process_get(self):
         key = getattr(self.__args, Const.Get.Key, None)
-        password = self.__resolver.password_for_name(key)
-        pyperclip.copy(password)
+        password = self.__resolver.password_for_name(key, '')
+        clip.copy(password)
 
     def process_add(self):
         key = getattr(self.__args, Const.Add.Key, None)
@@ -67,18 +71,18 @@ class CmdCozyPassword (object):
         pass
 
     def process_restore(self):
-        if "DEBUG" in environ:
-            print("Attempting to restore")
+        log.debug("Attempting to restore")
         self.__resolver.restore()
-        if "DEBUG" in environ:
-            print("Restored, no errors detected")
+        log.debug("Restored, no errors detected")
+
+    def process_print(self):
+        data = self.__resolver.data()
+        print(json.dumps(data['Pairs'], indent=1))
+
 
     def main(self):
-        #self.__resolver.save()
         self.__process_args()
-
-        if "DEBUG" in environ:
-            print("Clipboard content: %s" % clipboard.paste())
+        log.debug("Clipboard content: %s" % clip.paste())
 
 if __name__ == "__main__":
     cmd = CmdCozyPassword()
