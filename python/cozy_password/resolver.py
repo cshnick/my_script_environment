@@ -72,10 +72,11 @@ class ScandResolver(ResolverBase):
 
     def __save(self, *args, **kwargs):
         with customopen(*args, **kwargs) as scand_map_file:
-            with open(ScandResolver.__Encrypted_path, "w") as scand_encrypted:
+            with open(ScandResolver.__Encrypted_path, "wb") as scand_encrypted:
                 value = scand_map_file.getvalue()
                 if kwargs['type'] is 'buffer':
-                    json.dump(self.__data, scand_map_file)
+                    json_bytes = json.dumps(self.__data).encode('utf-8')
+                    scand_map_file.write(json_bytes)
                     scand_map_file.seek(0)
 
                 file_cryptor.encrypt(in_file=scand_map_file,
