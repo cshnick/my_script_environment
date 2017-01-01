@@ -10,6 +10,8 @@ yakuake-session -q -t "CMBuild" --hold --workdir /home/ilia/Development/scand/co
 
 qdbus org.kde.yakuake /yakuake/tabs setTabTitle 0 "Start" 1>/dev/null 2>/dev/null
 qdbus org.kde.yakuake /yakuake/tabs sessionAtTab 2 1>/dev/null 2>/dev/null
+
+xhost +
 #bluetooth-start
 #sleep 10 
 #reload-compositor &
