@@ -20,7 +20,7 @@ class DesktopFileResolver:
         HOME + '/.gnome/apps',
         '/usr/share/applications'
     ]
-    DEFAULT_EDITOR='/usr/bin/kwrite'
+    DEFAULT_EDITOR = '/usr/bin/kwrite'
 
     def __init__(self):
         self.__args = None
@@ -41,19 +41,15 @@ class DesktopFileResolver:
                 extend_sub(file)
 
     def __operate(self, callback):
-        callback.prev_dir=''
+        callback.prev_dir = ''
         for hpath in self.HABITAT:
             for filename in os.listdir(hpath):
                 if fnmatch(filename, '*.desktop'):
+                    # Pass method attributes, not as parameters as they have to be mutable
                     setattr(callback, 'next_dir', hpath)
                     setattr(callback, 'prev_dir', callback.prev_dir)
                     setattr(callback, 'filename', filename)
-                    bef = callback.prev_dir
-                    log.debug("Bef: %s" % bef)
                     callback()
-                    af = callback.prev_dir
-                    log.debug("Af: %s\n" % af)
-
 
     def search(self):
         pattern = self.__args.search_args[0]
@@ -83,7 +79,6 @@ class DesktopFileResolver:
                 Popen([editor, fullpath])
 
         self.__operate(iter_cb)
-
 
     def main(self):
         parser = ArgumentParser("Search and open desktop files by patterns")
