@@ -29,9 +29,9 @@ def main():
 
 
         if matches:
-            print '%s:' % Color(package_name).as_green()
+            print ('%s:' % Color(package_name).as_green())
             for match in matches:
-                print '\t%s' % match
+                print ('\t%s' % match)
 
 
 if __name__ == "__main__":
