@@ -28,7 +28,7 @@ class DesktopFileResolver:
 
     @staticmethod
     def __extend_habitat():
-        from os.path import join, isdir
+        from os.path import join, isdir, exists
         from os import listdir
 
         def extend_sub(path):
@@ -36,9 +36,7 @@ class DesktopFileResolver:
             if len(sublist):
                 DesktopFileResolver.HABITAT.extend(sublist)
 
-        for file in DesktopFileResolver.HABITAT:
-            if os.path.exists(file):
-                extend_sub(file)
+        [extend_sub(file) for file in DesktopFileResolver.HABITAT if exists(file)]
 
     def __operate(self, callback):
         callback.prev_dir = ''
