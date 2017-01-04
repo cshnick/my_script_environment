@@ -2,9 +2,11 @@
 
 import sys
 
-from PyQt5.QtCore import pyqtProperty, QObject, QUrl
-from PyQt5.QtQml import qmlRegisterType, QQmlComponent, QQmlApplicationEngine
+from PyQt5.QtCore import pyqtProperty, pyqtSlot, QObject, QUrl
+from PyQt5.QtQml import qmlRegisterType, qmlRegisterUncreatableType, QQmlComponent, QQmlApplicationEngine
 from PyQt5.QtGui import QGuiApplication
+from cozy_password.resolver import ScandResolver
+import logging as log
 
 
 # This is the type that will be registered with QML.  It must be a
@@ -14,11 +16,11 @@ class Resolver(QObject):
         super().__init__(parent)
 
         # Initialise the value of the properties.
-        self._name = ''
+        self._name = 'John'
         self._shoeSize = 0
+        self.__resolver = ScandResolver()
 
-    # Define the getter of the 'name' property.  The C++ type of the
-    # property is QString which Python will convert to and from a string.
+
     @pyqtProperty('QString')
     def name(self):
         return self._name
@@ -26,28 +28,23 @@ class Resolver(QObject):
     # Define the setter of the 'name' property.
     @name.setter
     def name(self, name):
+        print("Incoming name: %s" % name)
         self._name = name
 
-    # Define the getter of the 'shoeSize' property.  The C++ type and
-    # Python type of the property is int.
-    @pyqtProperty(int)
-    def shoeSize(self):
-        return self._shoeSize
-
-    # Define the setter of the 'shoeSize' property.
-    @shoeSize.setter
-    def shoeSize(self, shoeSize):
-        self._shoeSize = shoeSize
-
-    def test(self):
-        print('test')
+    @pyqtProperty('QStringList')
+    def keys(self):
+        log.debug('Requesting keys')
+        [log.debug(k) for k in self.__resolver.data()['Pairs']]
+        return [k for k in self.__resolver.data()['Pairs']]
 
 
 # Create the application instance.
 app = QGuiApplication(sys.argv)
 
+qmlRegisterType(Resolver, 'PyResolver', 1, 0, 'Resolver')
+
 engine = QQmlApplicationEngine()
-engine.load(QUrl('example.qml'))
+engine.load(QUrl('main.qml'))
 
 app.exec_()
 
