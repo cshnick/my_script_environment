@@ -15,34 +15,34 @@ ApplicationWindow {
 
     property var colors: {
         'red' : '#F44336',
-        'pink' : '#E91E63',
-        'purple' : '#9C27B0',
-        'deeppurple' : '#673AB7',
-        'indigo' : '#3F51B5',
-        'blue' : '#2196F3',
-        'lightblue' : '#03A9F4',
-        'cyan' : '#00BCD4',
-        'teal' : '#009688',
-        'green' : '#4CAF50',
-        'lightgreen' : '#8BC34A',
-        'lime' : '#CDDC39',
-        'yellow' : '#FFEB3B',
-        'amber' : '#FFC107',
-        'orange' : '#FF9800',
-        'deeporange' : '#FF5722',
-        'brown' : '#795548',
-        'grey' : '#9E9E9E',
-        'bluegrey' : '#607D8B',
-        'grey100' : '#F5F5F5'
+                'pink' : '#E91E63',
+                'purple' : '#9C27B0',
+                'deeppurple' : '#673AB7',
+                'indigo' : '#3F51B5',
+                'blue' : '#2196F3',
+                'lightblue' : '#03A9F4',
+                'cyan' : '#00BCD4',
+                'teal' : '#009688',
+                'green' : '#4CAF50',
+                'lightgreen' : '#8BC34A',
+                'lime' : '#CDDC39',
+                'yellow' : '#FFEB3B',
+                'amber' : '#FFC107',
+                'orange' : '#FF9800',
+                'deeporange' : '#FF5722',
+                'brown' : '#795548',
+                'grey' : '#9E9E9E',
+                'bluegrey' : '#607D8B',
+                'grey100' : '#F5F5F5'
     }
     property string border_color: colors.grey
     property int border_width: 1 * mwn.dp
+    property bool login_succeeded: false
 
     function rand_color() {
         var keys = Object.keys(colors)
         var randomint = Math.floor(Math.random() * keys.length)
         var randomval = colors[keys[randomint]]
-        //console.log("randomint: " + randomint + ' randomval' + randomval)
         return randomval
     }
 
@@ -50,9 +50,9 @@ ApplicationWindow {
         var hash = 0, i, chr, len;
         if (strval.length === 0) return hash;
         for (i = 0, len = strval.length; i < len; i++) {
-          chr   = strval.charCodeAt(i);
-          hash  = ((hash << 5) - hash) + chr;
-          hash |= 0; // Convert to 32bit integer
+            chr   = strval.charCodeAt(i);
+            hash  = ((hash << 5) - hash) + chr;
+            hash |= 0; // Convert to 32bit integer
         }
 
         var keys = Object.keys(colors)
@@ -72,7 +72,7 @@ ApplicationWindow {
         id: __resolver
     }
 
-    property var pythonModel: __resolver.keys
+    property var pythonModel: login_succeeded ? __resolver.keys : []
     property ListModel emptyModel: ListModel {}
     property ListModel fullModel:  ListModel {
         ListElement {name: "text1"}
@@ -91,7 +91,7 @@ ApplicationWindow {
 
     visible: true
     width: 640 * mwn.dp
-    height: Math.min(480 * mwn.dp, __view.height)
+    height: __textField.height
 
     title: qsTr("Hello World")
     flags: Qt.FramelessWindowHint | Qt.WA_TranslucentBackground //| Qt.BypassWindowManagerHint
@@ -109,7 +109,11 @@ ApplicationWindow {
         anchors.right: parent.right
         height: 40 * mwn.dp
         font.pixelSize: 24 * mwn.dp
+        echoMode: login_succeeded ? TextInput.Normal : TextInput.Password
         onTextChanged: {
+            if (!login_succeeded)
+                return
+
             var keys = __resolver.keys
             pythonModel = keys.filter(function(obj) {
                 var rx = new RegExp(text, 'i')
@@ -118,7 +122,35 @@ ApplicationWindow {
                 }
                 return false
             })
-            var kes = Object.keys(colors)
+        }
+
+        focus: true
+        placeholderText: login_succeeded ? '' : 'Password please'
+
+        Keys.onPressed: {
+            console.log("Event key: " + event.key)
+
+            switch (event.key) {
+            case Qt.Key_Return:
+                if (login_succeeded) {
+                    __resolver.k2p_clipboard(pythonModel[__view.currentIndex])
+                    mwn.hide()
+                    event.accepted = true
+                } else {
+                    __textField.text = ''
+                    login_succeeded = true
+                    event.accepted = true
+                }
+                break
+            case Qt.Key_Up:
+                __view.move(__view.up)
+                event.accepted = true
+                break
+            case Qt.Key_Down:
+                __view.move(__view.down)
+                event.accepted = true
+                break
+            }
         }
 
         style: TextFieldStyle {
@@ -126,12 +158,13 @@ ApplicationWindow {
                 border.color: mwn.border_color
                 border.width: mwn.border_width
             }
+            placeholderTextColor: colors.blue
         }
 
         Item {
             height: parent.height * 0.7
             width: height
-            visible: {console.log(pythonModel.length); return pythonModel.length === 0}
+            visible: {console.log("PML: " + pythonModel.length); return pythonModel.length === 0 && login_succeeded}
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             anchors.rightMargin: width * 0.15
@@ -158,8 +191,32 @@ ApplicationWindow {
         height: pythonModel.length * row_height
         clip: true
         model: pythonModel
-        delegate: Item {
 
+        readonly property int up : 0
+        readonly property int down : 1
+
+        function move(direction) {
+            if (count < 2) return
+
+            switch (direction) {
+            case down:
+                if (currentIndex === count - 1) {
+                    currentIndex = currentIndex = 0
+                } else {
+                    currentIndex += 1
+                }
+                break
+            case up:
+                if (currentIndex === 0) {
+                    currentIndex = count -1
+                } else {
+                    currentIndex -= 1
+                }
+                break
+            }
+        }
+
+        delegate: Item {
             property string content: pythonModel[index]
             property string highlightColor: custom_hash_index(content)
 
@@ -214,9 +271,9 @@ ApplicationWindow {
         }
         //focus: true
         highlight: Rectangle {
-
             color: colors.grey100;
         }
+        highlightMoveVelocity: 750
         onHeightChanged: {
             mwn.height = height + __textField.height
         }
