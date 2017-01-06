@@ -37,7 +37,7 @@ ApplicationWindow {
     }
     property string border_color: colors.grey
     property int border_width: 1 * mwn.dp
-    property bool login_succeeded: false
+    property bool login_succeeded: true
 
     function rand_color() {
         var keys = Object.keys(colors)
@@ -94,7 +94,7 @@ ApplicationWindow {
     height: __textField.height
 
     title: qsTr("Hello World")
-    flags: Qt.FramelessWindowHint | Qt.WA_TranslucentBackground //| Qt.BypassWindowManagerHint
+    flags: Qt.FramelessWindowHint | Qt.WA_TranslucentBackground | Qt.WindowStaysOnTopHint//| Qt.BypassWindowManagerHint
 
     /*Rectangle {
         anchors.fill: parent
@@ -135,6 +135,7 @@ ApplicationWindow {
                 if (login_succeeded) {
                     __resolver.k2p_clipboard(pythonModel[__view.currentIndex])
                     mwn.hide()
+                    Qt.quit()
                     event.accepted = true
                 } else {
                     __textField.text = ''
