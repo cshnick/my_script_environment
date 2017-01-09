@@ -33,11 +33,27 @@ ApplicationWindow {
                 'brown' : '#795548',
                 'grey' : '#9E9E9E',
                 'bluegrey' : '#607D8B',
+                'blue100' : '#B3E5FC',
+                'green100' : '#C8E6C9',
                 'grey100' : '#F5F5F5'
     }
     property string border_color: colors.grey
     property int border_width: 1 * mwn.dp
     property bool login_succeeded: true
+
+    //States begin
+    readonly property string common: 'common'
+    readonly property string password: 'password'
+    readonly property string login: 'login'
+    property string currentState: {
+        if (!login_succeeded) {
+            return login
+        }
+
+        return common
+    }
+    //States end
+    property string storedText: ''
 
     function rand_color() {
         var keys = Object.keys(colors)
@@ -101,87 +117,166 @@ ApplicationWindow {
         color: "white"
     }*/
 
-    TextField {
+    Rectangle {
         id: __textField
-
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
         height: 40 * mwn.dp
-        font.pixelSize: 24 * mwn.dp
-        echoMode: login_succeeded ? TextInput.Normal : TextInput.Password
-        onTextChanged: {
-            if (!login_succeeded)
-                return
+        color: "white"
+        border.color: mwn.border_color
+        border.width: mwn.border_width
 
-            var keys = __resolver.keys
-            pythonModel = keys.filter(function(obj) {
-                var rx = new RegExp(text, 'i')
-                if (rx.test(obj)) {
-                    return true
-                }
-                return false
-            })
+        property alias text: __enterField.text
+        property var newEntry: function() {
+            __customContainerContent.text = '<strong>NEW PASSWORD</strong>'
+            mwn.storedText = __enterField.text
+            mwn.currentState = mwn.password
+            __enterField.text = ''
         }
 
-        focus: true
-        placeholderText: login_succeeded ? '' : 'Password please'
+        Rectangle {
+            id: __customContainer
 
-        Keys.onPressed: {
-            console.log("Event key: " + event.key)
+            property int explicitwidth: currentState == mwn.password ? 130 * mwn.dp : 0
 
-            switch (event.key) {
-            case Qt.Key_Return:
-                if (login_succeeded) {
-                    __resolver.k2p_clipboard(pythonModel[__view.currentIndex])
-                    mwn.hide()
+            x: mwn.border_width
+            y: mwn.border_width
+            width: explicitwidth - 2*mwn.border_width
+            height: parent.height - 2*mwn.border_width
+            color: colors.green
+
+            Behavior on width {
+                NumberAnimation {duration: 150; easing.type: Easing.InOutQuad}
+            }
+
+            Rectangle {width: mwn.border_width; height: parent.height; color: mwn.border_color; anchors.right: parent.right}
+
+            Text {
+                id: __customContainerContent
+
+                text: ''
+                color: "white"
+                font.pixelSize: 14 * mwn.dp
+                anchors.fill: parent
+                anchors.leftMargin: mwn.spacing
+                renderType: Text.NativeRendering
+                verticalAlignment: Qt.AlignVCenter
+            }
+        }
+
+        TextField {
+            id: __enterField
+
+            x: __customContainer.width + mwn.border_width
+            y: mwn.border_width
+            width: parent.width - __customContainer.width - 2*mwn.border_width
+            height: parent.height - 3*mwn.border_width
+            font.pixelSize: 24 * mwn.dp
+            echoMode: {
+                login_succeeded ? TextInput.Normal : TextInput.Password
+                switch (mwn.currentState) {
+                case mwn.login:
+                case mwn.password:
+                    return TextInput.Password
+                default:
+                    return TextInput.Normal
+                }
+            }
+            onTextChanged: {
+                if (!login_succeeded || mwn.currentState !== mwn.common)
+                    return
+
+                var keys = __resolver.keys
+                pythonModel = keys.filter(function(obj) {
+                    var rx = new RegExp(text, 'i')
+                    if (rx.test(obj)) {
+                        return true
+                    }
+                    return false
+                })
+            }
+
+            focus: true
+            placeholderText: login_succeeded ? '' : 'Password please'
+
+            Keys.onPressed: {
+                console.log("Event key: " + event.key)
+                switch (event.key) {
+                case Qt.Key_Up:
+                    __view.move(__view.up)
+                    event.accepted = true
+                    break
+                case Qt.Key_Down:
+                    __view.move(__view.down)
+                    event.accepted = true
+                    break
+                }
+            }
+            Keys.onReturnPressed: {
+                console.log("Return operations")
+                switch (mwn.currentState) {
+                case mwn.login:
+                    mwn.currentState = mwn.common
+                    break
+                case mwn.password:
+                    mwn.currentState = mwn.common
+                    break;
+                case mwn.common:
+                    if (pythonModel.length === 0) {
+                        __textField.newEntry()
+                    } else {
+                        __resolver.k2p_clipboard(pythonModel[__view.currentIndex])
+                        mwn.hide()
+                        Qt.quit()
+                    }
+                    break;
+                }
+                event.accepted = true
+            }
+            Keys.onEscapePressed: {
+                console.log("Escape operations")
+                switch (mwn.currentState) {
+                case mwn.login:
+                case mwn.common:
                     Qt.quit()
-                    event.accepted = true
-                } else {
-                    __textField.text = ''
-                    login_succeeded = true
-                    event.accepted = true
+                    break
+                case mwn.password:
+                    __textField.text = mwn.storedText
+                    mwn.currentState = mwn.common
+                    break
                 }
-                break
-            case Qt.Key_Up:
-                __view.move(__view.up)
-                event.accepted = true
-                break
-            case Qt.Key_Down:
-                __view.move(__view.down)
-                event.accepted = true
-                break
             }
-        }
 
-        style: TextFieldStyle {
-            background: Rectangle {
-                border.color: mwn.border_color
-                border.width: mwn.border_width
+            style: TextFieldStyle {
+                background: Rectangle {
+                    border.color: mwn.border_color
+                    border.width: 0//mwn.border_width
+                }
+                placeholderTextColor: colors.blue
             }
-            placeholderTextColor: colors.blue
-        }
 
-        Item {
-            height: parent.height * 0.7
-            width: height
-            visible: {console.log("PML: " + pythonModel.length); return pythonModel.length === 0 && login_succeeded}
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.rightMargin: width * 0.15
+            Item {
+                height: parent.height * 0.7
+                width: height
+                visible: {console.log("PML: " + pythonModel.length); return pythonModel.length === 0 && login_succeeded}
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.rightMargin: width * 0.15
 
-            Image {
-                anchors.fill: parent
-                source: 'new_entry.svg'
-            }
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {
-                    console.log("clicked")
+                Image {
+                    anchors.fill: parent
+                    source: 'new_entry.svg'
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked:  __textField.newEntry()
                 }
             }
         }
     }
+
+
 
     ListView {
         id: __view
