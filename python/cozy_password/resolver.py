@@ -14,6 +14,10 @@ from contextlib import contextmanager
 from cozy_password.password_generator import generate_pass
 import logging as log
 import json
+from git import Repo
+from git.repo.fun import is_git_dir
+import git
+
 
 log.basicConfig(level=log.DEBUG if 'DEBUG' in os.environ else log.WARNING,
                 format='%(asctime)s - %(levelname)s - %(message)s')
@@ -38,14 +42,36 @@ def load_on_demand(method):
         return method(self, *args, **kwargs)
     return deco
 
+def init_repo(method):
+    def deco(self, *args, **kwargs):
+        if not os.path.exists(ScandResolver.RepoPath + "/.git"):
+            repo = Repo.clone_from(ScandResolver.RepoRemote, ScandResolver.RepoPath)
+        else:
+
+            class MyProgressPrinter(git.RemoteProgress):
+                def update(self, op_code, cur_count, max_count=None, message=''):
+                    log.debug("\r%sdata" % cur_count / (max_count or 100.0) * 100)
+            repo = Repo(ScandResolver.RepoPath)
+            origin = repo.remotes.origin
+            for info in origin.pull(progress=MyProgressPrinter()):
+                log.debug("Updated %s to %s" % (info.ref, info.commit.message))
+        return method(self, *args, **kwargs)
+
+    return deco
+
 
 class ScandResolver(ResolverBase):
     __Pairs = "Pairs"
     __Filename = "scand_map.json"
-    __Encrypted = "scand_map.json.enc"
+    __Encrypted = "map.json.enc"
     __Dir_path = os.path.dirname(os.path.realpath(__file__))
+    __Repo_path = __Dir_path + '/encoded'
+    __Repo_remote_path = 'git@github.com:cshnick/encodedp.git'
     __Filename_path = __Dir_path + '/' + __Filename
-    __Encrypted_path = __Dir_path + '/' + __Encrypted
+    __Encrypted_path = __Repo_path + '/' + __Encrypted
+
+    RepoPath = __Repo_path
+    RepoRemote = __Repo_remote_path
 
     def __init__(self):
         #self.restore()
@@ -116,6 +142,7 @@ class ScandResolver(ResolverBase):
                                      out_file=scand_map_file,
                                      password=b'Qwerty#0')
 
+    @init_repo
     @load_on_demand
     def data(self):
         return self.__data

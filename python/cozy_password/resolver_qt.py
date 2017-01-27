@@ -31,6 +31,11 @@ class Resolver(QObject):
         password = self.__resolver.password_for_name(arg)
         clip.copy(password)
 
+    @pyqtSlot(str, str)
+
+    def new_entry(self, key, password):
+        pass
+
 
 # Create the application instance.
 app = QGuiApplication(sys.argv)

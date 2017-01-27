@@ -1,6 +1,7 @@
 from hashlib import md5
 from Crypto.Cipher import AES
 from Crypto import Random
+import logging as log
 
 def derive_key_and_iv(password, salt, key_length, iv_length):
     d = d_i = b''
@@ -27,6 +28,10 @@ def encrypt(in_file, out_file, password, key_length=32):
 def decrypt(in_file, out_file, password, key_length=32):
     bs = AES.block_size
     salt = in_file.read(bs)[len('Salted__'):]
+    #empty
+    if not salt:
+        log.debug('Empty file for decryption')
+        return
     key, iv = derive_key_and_iv(password, salt, key_length, bs)
     cipher = AES.new(key, AES.MODE_CBC, iv)
     next_chunk = b''
