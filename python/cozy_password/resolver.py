@@ -42,20 +42,38 @@ def load_on_demand(method):
         return method(self, *args, **kwargs)
     return deco
 
+
 def init_repo(method):
     def deco(self, *args, **kwargs):
+
         if not os.path.exists(ScandResolver.RepoPath + "/.git"):
             repo = Repo.clone_from(ScandResolver.RepoRemote, ScandResolver.RepoPath)
         else:
-
-            class MyProgressPrinter(git.RemoteProgress):
-                def update(self, op_code, cur_count, max_count=None, message=''):
-                    log.debug("\r%sdata" % cur_count / (max_count or 100.0) * 100)
-            repo = Repo(ScandResolver.RepoPath)
-            origin = repo.remotes.origin
-            for info in origin.pull(progress=MyProgressPrinter()):
-                log.debug("Updated %s to %s" % (info.ref, info.commit.message))
+            if not hasattr(self, "__data") or not self.__data:
+                class MyProgressPrinter(git.RemoteProgress):
+                    def update(self, op_code, cur_count, max_count=None, message=''):
+                        log.debug("\r%sdata" % cur_count / (max_count or 100.0) * 100)
+                repo = Repo(ScandResolver.RepoPath)
+                origin = repo.remotes.origin
+                for info in origin.pull(progress=MyProgressPrinter()):
+                    log.debug("Pulled %s to %s" % (info.ref, info.commit.message))
         return method(self, *args, **kwargs)
+    return deco
+
+def push_if_index(method):
+    def deco(self, *args, **kwargs):
+        method(self, *args, **kwargs)
+        repo = Repo(ScandResolver.RepoPath)
+        index = repo.index
+        entries = [path for path, stage in index.entries if not stage]
+        index.add(entries)
+        if entries:
+            import datetime
+            import socket
+            index.commit('%s - from %s' % (datetime.datetime.now(), socket.gethostname()))
+            origin = repo.remotes.origin
+            for info in origin.push():
+                log.debug("Pushed %s" % info.commit.message)
 
     return deco
 
@@ -75,8 +93,9 @@ class ScandResolver(ResolverBase):
 
     def __init__(self):
         #self.restore()
-        self.__data = None
+        self.__data = {'Pairs' : {}}
 
+    #@init_repo
     @load_on_demand
     def password_for_name(self, name, default=None):
         log.debug("Dir path: %s" % ScandResolver.__Dir_path)
@@ -87,6 +106,8 @@ class ScandResolver(ResolverBase):
 
         return password
 
+    @push_if_index
+    #@init_repo
     @load_on_demand
     def add_password(self, key, password):
         log.debug("Inserting password")
@@ -118,7 +139,9 @@ class ScandResolver(ResolverBase):
 
                 scand_map_file.seek(0)
                 decoded = scand_map_file.read().decode('utf-8')
-                self.__data = json.loads(decoded)
+
+                if decoded:
+                    self.__data = json.loads(decoded)
 
 
     def save(self):
@@ -142,7 +165,7 @@ class ScandResolver(ResolverBase):
                                      out_file=scand_map_file,
                                      password=b'Qwerty#0')
 
-    @init_repo
+    #@init_repo
     @load_on_demand
     def data(self):
         return self.__data

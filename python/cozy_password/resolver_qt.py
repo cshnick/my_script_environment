@@ -8,6 +8,7 @@ from PyQt5.QtGui import QGuiApplication
 from cozy_password.resolver import ScandResolver
 import logging as log
 import pyperclip as clip
+import cozy_password.QSingleApplication
 
 
 # This is the type that will be registered with QML.  It must be a
