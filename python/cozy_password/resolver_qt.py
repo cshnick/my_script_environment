@@ -8,8 +8,8 @@ from PyQt5.QtGui import QGuiApplication
 from cozy_password.resolver import ScandResolver
 import logging as log
 import pyperclip as clip
-import cozy_password.QSingleApplication
-
+from cozy_password.QSingleApplication import QtSingleGuiApplication
+import socket, os
 
 # This is the type that will be registered with QML.  It must be a
 # sub-class of QObject.
@@ -33,17 +33,29 @@ class Resolver(QObject):
         clip.copy(password)
 
     @pyqtSlot(str, str)
-
     def new_entry(self, key, password):
         pass
 
 
-# Create the application instance.
-app = QGuiApplication(sys.argv)
+from contextlib import contextmanager
+@contextmanager
+def open_single_application(*args):
+    qtapp = QtSingleGuiApplication(*args)
+    try:
+        yield qtapp
+    finally:
+        qtapp.stop()
 
-qmlRegisterType(Resolver, 'PyResolver', 1, 0, 'Resolver')
 
-engine = QQmlApplicationEngine()
-engine.load(QUrl('main.qml'))
+appGuid = '54022365-9923-4ba5-a589-c9dfca2326de'
+with open_single_application(appGuid, sys.argv) as app:
+    if app.isRunning(): sys.exit(0)
 
-app.exec_()
+    qmlRegisterType(Resolver, 'PyResolver', 1, 0, 'Resolver')
+    engine = QQmlApplicationEngine()
+    engine.load(QUrl('main.qml'))
+    mwn = engine.rootObjects()[0]
+    app.setActivationWindow(mwn)
+    mwn.hide()
+
+    sys.exit(app.exec_())

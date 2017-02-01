@@ -1,12 +1,15 @@
-from PyQt5.QtCore import QTextStream
-from PyQt5.QtGui import *
+from PyQt5.QtCore import QTextStream, pyqtSignal, pyqtSlot, Qt
+from PyQt5.QtGui import QGuiApplication
 from PyQt5.QtNetwork import QLocalSocket, QLocalServer
+import os
+import logging as log
 
-class QtSingleApplication(QGuiApplication):
-    #messageReceived = Signal(unicode)
+class QtSingleGuiApplication(QGuiApplication):
+    messageReceived = pyqtSignal(str, name='messageReceived')
+
     def __init__(self, id, *argv):
 
-        super(QtSingleApplication, self).__init__(*argv)
+        super(QtSingleGuiApplication, self).__init__(*argv)
         self._id = id
         self._activationWindow = None
         self._activateOnMessage = False
@@ -15,11 +18,13 @@ class QtSingleApplication(QGuiApplication):
         self._outSocket = QLocalSocket()
         self._outSocket.connectToServer(self._id)
         self._isRunning = self._outSocket.waitForConnected()
+        log.debug('Client!' if self._isRunning else 'Server!')
 
         if self._isRunning:
             # Yes, there is.
             self._outStream = QTextStream(self._outSocket)
             self._outStream.setCodec('UTF-8')
+            self._server = None
         else:
             # No, there isn't.
             self._outSocket = None
@@ -27,7 +32,10 @@ class QtSingleApplication(QGuiApplication):
             self._inSocket = None
             self._inStream = None
             self._server = QLocalServer()
-            self._server.listen(self._id)
+            if not self._server.listen(self._id):
+                os.remove(os.path.join('/tmp', self._id))
+                if not self._server.listen(self._id):
+                    log.debug(self._server.serverError())
             self._server.newConnection.connect(self._onNewConnection)
 
     def isRunning(self):
@@ -46,6 +54,8 @@ class QtSingleApplication(QGuiApplication):
     def activateWindow(self):
         if not self._activationWindow:
             return
+        self._activationWindow.setWindowState(
+            self._activationWindow.windowState() & ~Qt.WindowMinimized)
         self._activationWindow.show()
 
     def sendMessage(self, msg):
@@ -55,7 +65,13 @@ class QtSingleApplication(QGuiApplication):
         self._outStream.flush()
         return self._outSocket.waitForBytesWritten()
 
+    def stop(self):
+        if self._server:
+            self._server.close()
+
+    @pyqtSlot()
     def _onNewConnection(self):
+        log.debug("New connection establishment attempt")
         if self._inSocket:
             self._inSocket.readyRead.disconnect(self._onReadyRead)
         self._inSocket = self._server.nextPendingConnection()
