@@ -16,6 +16,7 @@ import json
 
 class Const (object):
     Subprsr_name = 'subparser_name'
+    Remote_update = 'remote_update'
     class Restore:
         Name = 'restore'
     class Add:
@@ -32,6 +33,7 @@ class CmdCozyPassword (object):
     def __init__(self):
         filename = basename(__file__)
         parser = ArgumentParser(filename)
+        parser.add_argument('-r', '--update_remote', help='update from remote repository', dest=Const.Remote_update, action='store_true')
 
         subparsers = parser.add_subparsers(help="Subparsers", dest=Const.Subprsr_name)
         parser_get = subparsers.add_parser(Const.Get.Name, help="Get password from key")
@@ -45,38 +47,41 @@ class CmdCozyPassword (object):
 
         parser_print = subparsers.add_parser(Const.Print.Name, help="Print as json")
 
-        self.__args =  parser.parse_args()
-        self.__resolver = ScandResolver()
+        self._args =  parser.parse_args()
+        self._resolver = ScandResolver()
 
+        self._resolver.password = 'Qwerty#0'
+
+        remote = getattr(self._args, Const.Remote_update, False)
+        self._resolver.update(remote=remote)
 
     def __process_args(self):
-        log.debug("Self args: %s" % self.__args)
+        log.debug("Self args: %s" % self._args)
         #Callback is starting from process_...
-        name  = 'process_'+self.__args.__dict__[Const.Subprsr_name]
+        name  = 'process_'+self._args.__dict__[Const.Subprsr_name]
         callback = getattr(self, name)
         if callback:
             callback()
 
-
     def process_get(self):
-        key = getattr(self.__args, Const.Get.Key, None)
-        password = self.__resolver.password_for_name(key, '')
+        key = getattr(self._args, Const.Get.Key, None)
+        password = self._resolver.password_for_name(key, '')
         clip.copy(password)
 
     def process_add(self):
-        key = getattr(self.__args, Const.Add.Key, None)
-        password = getattr(self.__args, Const.Add.Password, None)
+        key = getattr(self._args, Const.Add.Key, None)
+        password = getattr(self._args, Const.Add.Password, None)
 
-        self.__resolver.add_password(key=key, password=password)
+        self._resolver.add_password(key=key, password=password)
         pass
 
     def process_restore(self):
         log.debug("Attempting to restore")
-        self.__resolver.restore()
+        self._resolver.restore()
         log.debug("Restored, no errors detected")
 
     def process_print(self):
-        data = self.__resolver.data()
+        data = self._resolver.data()
         print(json.dumps(data['Pairs'], indent=1))
 
 
