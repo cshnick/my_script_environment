@@ -18,12 +18,13 @@ from git import Repo
 from git.repo.fun import is_git_dir
 import git
 
-
 log.basicConfig(level=log.DEBUG if 'DEBUG' in os.environ else log.WARNING,
                 format='%(asctime)s - %(levelname)s - %(message)s')
 
-
 class ResolverBase(object):
+    pass
+
+class DecodeError(Exception):
     pass
 
 @contextmanager
@@ -38,6 +39,16 @@ def customopen(*args, **kwargs):
     finally:
         stream.close()
 
+import time
+def profile(method):
+    def deco(self, *args, **kwargs):
+        start_time = time.time()
+        ret = method(self, *args, **kwargs)
+        elapsed_time = time.time() - start_time
+        log.debug('PROFILE - Method: %s, args: %s, elapsed: %s' % (method.__name__, args,elapsed_time * 1000))
+        return ret
+    return deco
+
 def load_on_demand(method):
     def deco(self, *args, **kwargs):
         if not self.pairs:
@@ -51,12 +62,19 @@ def init_repo(method):
         method(self, *args, **kwargs)
     return deco
 
-def push_if_index(method):
+def pull_if_required(method):
+    def deco(self, *args, **kwargs):
+        if self._remote_update:
+            self._pull()
+        method(self, *args, **kwargs)
+
+    return deco
+
+def push_if_required(method):
     def deco(self, *args, **kwargs):
         method(self, *args, **kwargs)
         self._push()
     return deco
-
 
 class ScandResolver(ResolverBase):
     _Filename = "scand_map.json"
@@ -83,6 +101,7 @@ class ScandResolver(ResolverBase):
         self._encrypted_dir = self._Repo_path
         self._enc_password = ''
         self._remote = self._Repo_remote_path
+        self._remote_update = False
         self._data = {self.Pairs_tag : {}}
 
     @property
@@ -109,7 +128,12 @@ class ScandResolver(ResolverBase):
     def pairs(self):
         return self._data[self.Pairs_tag]
 
+    @property
+    def remote_update(self): return self._remote_update
+    @remote_update.setter
+    def remote_update(self, value): self._remote_update = value
 
+    @pull_if_required
     def password_for_name(self, name, default=None):
         log.debug("password for name %s from %s" % (name, self.path))
         pairs = self._data[self.Pairs_tag]
@@ -119,27 +143,26 @@ class ScandResolver(ResolverBase):
 
         return password
 
+    @profile
+    def check_password(self, chk):
+        empty_dic = {ScandResolver.Pairs_tag : {}}
+        old_pass = self.password
+        self.password = chk
+        try:
+            self._load(empty_dic, io='buffer')
+        except DecodeError:
+            return False
+
+        return True
+
+    @push_if_required
     def add_password(self, key, password):
         log.debug("Inserting password")
         if password is None:
             password = generate_pass()
 
         self._data[ScandResolver.Pairs_tag][key] = password
-        self.save()
-
-    def save(self):
-        self._save(io='buffer')
-
-    def save_file(self):
-        self._save(ScandResolver._Filename_path, 'r', io='file')
-
-    def load(self):
-        self._load(self._data, io='buffer')
-        pass
-
-    def load_from_file(self):
-        self._load(ScandResolver._Filename_path, 'r+', io='file')
-        pass
+        self._save_data()
 
     def restore(self):
         with open(ScandResolver._Filename_path, 'rb') as scand_encrypted:
@@ -148,17 +171,15 @@ class ScandResolver(ResolverBase):
                                      out_file=scand_map_file,
                                      password=b'Qwerty#0')
 
-    def update(self, **kwargs):
-        if 'remote' in kwargs and kwargs['remote'] is True:
-            self._pull()
-        self.load()
+    @pull_if_required
+    def update(self):
+        self._load_to_data()
 
     def _save(self, *args, **kwargs):
         with customopen(*args, **kwargs) as source_io:
             with open(self.path, "wb") as enc_dest_io:
-                value = source_io.getvalue()
                 #fill buffer with json data
-                if kwargs['source_io'] is 'buffer':
+                if kwargs['io'] is 'buffer':
                     json_bytes = json.dumps(self._data).encode('utf-8')
                     source_io.write(json_bytes)
                     source_io.seek(0)
@@ -170,15 +191,21 @@ class ScandResolver(ResolverBase):
     def _load(self, *args, **kwargs):
         with open(self.path, "rb") as enc_source_io:
             with customopen(*args, **kwargs) as destination_io:
-                file_cryptor.decrypt(in_file=enc_source_io,
-                                     out_file=destination_io,
-                                     password=self.password.encode('utf-8'))
+                try:
+                    file_cryptor.decrypt(in_file=enc_source_io,
+                                         out_file=destination_io,
+                                         password=self.password.encode('utf-8'))
 
-                destination_io.seek(0)
-                decoded = destination_io.read().decode('utf-8')
+                    destination_io.seek(0)
+                    decoded = destination_io.read().decode('utf-8')
+                except file_cryptor.EmptyIOError:
+                    return
+                except UnicodeDecodeError:
+                    raise DecodeError()
 
-                if decoded:
-                    self._data = json.loads(decoded)
+                if not decoded:
+                    raise DecodeError()
+                self._data = json.loads(decoded)
 
     def _pull(self):
         if not os.path.exists(ScandResolver.RepoPath + "/.git"):
@@ -204,4 +231,20 @@ class ScandResolver(ResolverBase):
             index.commit('%s - from %s' % (datetime.datetime.now(), socket.gethostname()))
             origin = repo.remotes.origin
             for info in origin.push():
-                log.debug("Pushed %s" % info.commit.message)
+                log.debug("Pushed %s" % info.local_ref.commit.message)
+
+    def _save_data(self):
+        self._save(io='buffer')
+
+    def _save_file(self):
+        self._save(ScandResolver._Filename_path, 'r', io='file')
+
+    def _load_to_data(self):
+        try:
+            self._load(self._data, io='buffer')
+        except DecodeError:
+            pass
+
+    def _load_from_decoded(self):
+        self._load(ScandResolver._Filename_path, 'r+', io='file')
+        pass

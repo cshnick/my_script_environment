@@ -28,6 +28,9 @@ class Const (object):
         Key = "Get.Key"
     class Print:
         Name = "print"
+    class CheckPasword:
+        Name = "check_password"
+        Key = "Check.Key"
 
 class CmdCozyPassword (object):
     def __init__(self):
@@ -47,13 +50,17 @@ class CmdCozyPassword (object):
 
         parser_print = subparsers.add_parser(Const.Print.Name, help="Print as json")
 
+        parser_chck_password = subparsers.add_parser(Const.CheckPasword.Name, help="Check password")
+        parser_chck_password.add_argument(Const.CheckPasword.Key, help='Password to check')
+
         self._args =  parser.parse_args()
         self._resolver = ScandResolver()
 
         self._resolver.password = 'Qwerty#0'
 
         remote = getattr(self._args, Const.Remote_update, False)
-        self._resolver.update(remote=remote)
+        self._resolver.remote_update = remote
+        self._resolver.update()
 
     def __process_args(self):
         log.debug("Self args: %s" % self._args)
@@ -67,6 +74,7 @@ class CmdCozyPassword (object):
         key = getattr(self._args, Const.Get.Key, None)
         password = self._resolver.password_for_name(key, '')
         clip.copy(password)
+        log.debug("Clipboard content: %s" % clip.paste())
 
     def process_add(self):
         key = getattr(self._args, Const.Add.Key, None)
@@ -81,13 +89,16 @@ class CmdCozyPassword (object):
         log.debug("Restored, no errors detected")
 
     def process_print(self):
-        data = self._resolver.data()
-        print(json.dumps(data['Pairs'], indent=1))
+        pairs = self._resolver.pairs
+        print(json.dumps(pairs, indent=1))
 
+    def process_check_password(self):
+        key = getattr(self._args, Const.CheckPasword.Key, None)
+        result = bool(self._resolver.check_password(key))
+        print('Password ok' if result else 'Password does not match, try again')
 
     def main(self):
         self.__process_args()
-        log.debug("Clipboard content: %s" % clip.paste())
 
 if __name__ == "__main__":
     cmd = CmdCozyPassword()
