@@ -36,6 +36,10 @@ class Resolver(QObject):
     def new_entry(self, key, password):
         pass
 
+    @pyqtSlot(str, result=bool)
+    def check_password(self, key):
+        return self.__resolver.check_password(key)
+
 
 from contextlib import contextmanager
 @contextmanager

@@ -45,13 +45,9 @@ ApplicationWindow {
     readonly property string common: 'common'
     readonly property string password: 'password'
     readonly property string login: 'login'
-    property string currentState: {
-        if (!login_succeeded) {
-            return login
-        }
+    readonly property string add: "add"
 
-        return common
-    }
+    property string currentState: login
     //States end
     property string storedText: ''
 
@@ -76,6 +72,16 @@ ApplicationWindow {
         return colors[keys[hashindex]]
     }
 
+    function _timer() {
+        return Qt.createQmlObject("import QtQuick 2.0; Timer {}", mwn);
+    }
+
+    function delay(delayTime, cb) {
+        _timer.interval = delayTime;
+        _timer.repeat = false;
+        _timer.triggered.connect(cb);
+        _timer.start();
+    }
 
     Behavior on height {
         NumberAnimation {
@@ -85,10 +91,10 @@ ApplicationWindow {
     }
 
     Resolver {
-        id: __resolver
+        id: _resolver
     }
 
-    property var pythonModel: login_succeeded ? __resolver.keys : []
+    property var pythonModel: currentState === login ?  [] : _resolver.keys
     property ListModel emptyModel: ListModel {}
     property ListModel fullModel:  ListModel {
         ListElement {name: "text1"}
@@ -96,6 +102,7 @@ ApplicationWindow {
         ListElement {name: "text3"}
         ListElement {name: "text4"}
     }
+
     property var alterModel: [
         'Key1',
         'Key2',
@@ -107,18 +114,17 @@ ApplicationWindow {
 
     visible: true
     width: 640 * mwn.dp
-    height: __textField.height
+    height: _textField.height
 
     title: qsTr("Hello World")
     flags: Qt.FramelessWindowHint | Qt.WA_TranslucentBackground | Qt.WindowStaysOnTopHint//| Qt.BypassWindowManagerHint
 
-    /*Rectangle {
-        anchors.fill: parent
-        color: "white"
-    }*/
+    Timer {
+        id: _timer
+    }
 
     Rectangle {
-        id: __textField
+        id: _textField
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
@@ -127,18 +133,40 @@ ApplicationWindow {
         border.color: mwn.border_color
         border.width: mwn.border_width
 
-        property alias text: __enterField.text
+        property alias customLeftSide: _customContainer.data
+
+        property alias text: _enterField.text
         property var newEntry: function() {
-            __customContainerContent.text = '<strong>NEW PASSWORD</strong>'
-            mwn.storedText = __enterField.text
+            _customContainerContent.text = '<strong>NEW PASSWORD</strong>'
+            mwn.storedText = _enterField.text
             mwn.currentState = mwn.password
-            __enterField.text = ''
+            _enterField.text = ''
         }
 
+        states: [
+            State {
+                name: mwn.common
+            },
+            State {
+                name: mwn.add
+                PropertyChanges {
+                    target: _customContainer
+                    explicitwidth: 100 * dp
+                    text: "Add"
+                }
+                //when: currentState === mwn.add
+            },
+            State {
+                name: mwn.login
+            }
+        ]
+
         Rectangle {
-            id: __customContainer
+            id: _customContainer
 
             property int explicitwidth: currentState == mwn.password ? 130 * mwn.dp : 0
+            property alias text: _customContainerContent.text
+            //width: children.width
 
             x: mwn.border_width
             y: mwn.border_width
@@ -153,7 +181,7 @@ ApplicationWindow {
             Rectangle {width: mwn.border_width; height: parent.height; color: mwn.border_color; anchors.right: parent.right}
 
             Text {
-                id: __customContainerContent
+                id: _customContainerContent
 
                 text: ''
                 color: "white"
@@ -166,11 +194,11 @@ ApplicationWindow {
         }
 
         TextField {
-            id: __enterField
+            id: _enterField
 
-            x: __customContainer.width + mwn.border_width
+            x: _customContainer.width + mwn.border_width
             y: mwn.border_width
-            width: parent.width - __customContainer.width - 2*mwn.border_width
+            width: parent.width - _customContainer.width - 2*mwn.border_width
             height: parent.height - 3*mwn.border_width
             font.pixelSize: 24 * mwn.dp
             echoMode: {
@@ -186,8 +214,15 @@ ApplicationWindow {
             onTextChanged: {
                 if (!login_succeeded || mwn.currentState !== mwn.common)
                     return
+                switch (currentState) {
+                case mwn.common:
+                    if (mwn.pythonModel.length !== 0) {
+                        _customContainer.state = mwn.add
+                    }
+                    break
+                }
 
-                var keys = __resolver.keys
+                var keys = _resolver.keys
                 pythonModel = keys.filter(function(obj) {
                     var rx = new RegExp(text, 'i')
                     if (rx.test(obj)) {
@@ -198,7 +233,7 @@ ApplicationWindow {
             }
 
             focus: true
-            placeholderText: login_succeeded ? '' : 'Password please'
+            placeholderText: "Password sir"
 
             Keys.onPressed: {
                 console.log("Event key: " + event.key)
@@ -217,16 +252,31 @@ ApplicationWindow {
                 console.log("Return operations")
                 switch (mwn.currentState) {
                 case mwn.login:
-                    mwn.currentState = mwn.common
+                    if (_resolver.check_password(_textField.text)) {
+                        _textField.text = ''
+                        _enterField.style = _normalTFStyle
+                        mwn.currentState = mwn.common
+                        _enterField.placeholderText = ''
+                    } else {
+                        _textField.text = ''
+                        _enterField.style = _errorTFStyle
+                        var oldText = _enterField.placeholderText
+                        _enterField.placeholderText = "Incorrect, sir"
+                        delay(1000 ,function() {
+                            _enterField.placeholderText = "Password, sir"
+                            _enterField.style = _normalTFStyle
+                        })
+                    }
                     break
                 case mwn.password:
                     mwn.currentState = mwn.common
                     break;
                 case mwn.common:
                     if (pythonModel.length === 0) {
-                        __textField.newEntry()
+                        _textField.newEntry()
+                        currentState = add
                     } else {
-                        __resolver.k2p_clipboard(pythonModel[__view.currentIndex])
+                        _resolver.k2p_clipboard(pythonModel[__view.currentIndex])
                         mwn.hide()
                         Qt.quit()
                     }
@@ -242,18 +292,12 @@ ApplicationWindow {
                     Qt.quit()
                     break
                 case mwn.password:
-                    __textField.text = mwn.storedText
+                    _textField.text = mwn.storedText
                     mwn.currentState = mwn.common
                     break
+                case mwn.add:
+                    break
                 }
-            }
-
-            style: TextFieldStyle {
-                background: Rectangle {
-                    border.color: mwn.border_color
-                    border.width: 0//mwn.border_width
-                }
-                placeholderTextColor: colors.blue
             }
 
             Item {
@@ -270,18 +314,39 @@ ApplicationWindow {
                 }
                 MouseArea {
                     anchors.fill: parent
-                    onClicked:  __textField.newEntry()
+                    onClicked:  _textField.newEntry()
                 }
             }
+
+            style: _normalTFStyle
         }
     }
 
-
+    Component {
+        id: _normalTFStyle
+        TextFieldStyle {
+            background: Rectangle {
+                border.color: mwn.border_color
+                border.width: 0//mwn.border_width
+            }
+            placeholderTextColor: colors.blue
+        }
+    }
+    Component {
+        id: _errorTFStyle
+        TextFieldStyle {
+            background: Rectangle {
+                border.color: colors.red
+                border.width: 0//mwn.border_width
+            }
+            placeholderTextColor: colors.red
+        }
+    }
 
     ListView {
         id: __view
 
-        anchors.top: __textField.bottom
+        anchors.top: _textField.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         height: pythonModel.length * row_height
@@ -371,7 +436,7 @@ ApplicationWindow {
         }
         highlightMoveVelocity: 750
         onHeightChanged: {
-            mwn.height = height + __textField.height
+            mwn.height = height + _textField.height
         }
     }
 
