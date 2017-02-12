@@ -45,7 +45,7 @@ def profile(method):
         start_time = time.time()
         ret = method(self, *args, **kwargs)
         elapsed_time = time.time() - start_time
-        log.debug('PROFILE - Method: %s, args: %s, elapsed: %s' % (method.__name__, args,elapsed_time * 1000))[]
+        log.debug('PROFILE - Method: %s, args: %s, elapsed: %s' % (method.__name__, args,elapsed_time * 1000))
         return ret
     return deco
 
