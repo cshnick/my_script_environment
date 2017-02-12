@@ -38,7 +38,7 @@ function main {
         esac
         ;;
     text/x-python)
-        kwrite "$@"
+        kwrite "$@" &
         ;;
     *)
         if [[ ${1: -3} == ".sh" ]] ; then
