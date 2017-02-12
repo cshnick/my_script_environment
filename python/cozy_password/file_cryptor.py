@@ -3,6 +3,9 @@ from Crypto.Cipher import AES
 from Crypto import Random
 import logging as log
 
+class EmptyIOError(Exception):
+    pass
+
 def derive_key_and_iv(password, salt, key_length, iv_length):
     d = d_i = b''
     while len(d) < key_length + iv_length:
@@ -29,9 +32,7 @@ def decrypt(in_file, out_file, password, key_length=32):
     bs = AES.block_size
     salt = in_file.read(bs)[len('Salted__'):]
     #empty
-    if not salt:
-        log.debug('Empty file for decryption')
-        return
+    if not salt: raise EmptyIOError()
     key, iv = derive_key_and_iv(password, salt, key_length, bs)
     cipher = AES.new(key, AES.MODE_CBC, iv)
     next_chunk = b''

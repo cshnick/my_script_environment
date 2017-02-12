@@ -16,6 +16,7 @@ import json
 
 class Const (object):
     Subprsr_name = 'subparser_name'
+    Remote_update = 'remote_update'
     class Restore:
         Name = 'restore'
     class Add:
@@ -27,11 +28,15 @@ class Const (object):
         Key = "Get.Key"
     class Print:
         Name = "print"
+    class CheckPasword:
+        Name = "check_password"
+        Key = "Check.Key"
 
 class CmdCozyPassword (object):
     def __init__(self):
         filename = basename(__file__)
         parser = ArgumentParser(filename)
+        parser.add_argument('-r', '--update_remote', help='update from remote repository', dest=Const.Remote_update, action='store_true')
 
         subparsers = parser.add_subparsers(help="Subparsers", dest=Const.Subprsr_name)
         parser_get = subparsers.add_parser(Const.Get.Name, help="Get password from key")
@@ -45,44 +50,55 @@ class CmdCozyPassword (object):
 
         parser_print = subparsers.add_parser(Const.Print.Name, help="Print as json")
 
-        self.__args =  parser.parse_args()
-        self.__resolver = ScandResolver()
+        parser_chck_password = subparsers.add_parser(Const.CheckPasword.Name, help="Check password")
+        parser_chck_password.add_argument(Const.CheckPasword.Key, help='Password to check')
 
+        self._args =  parser.parse_args()
+        self._resolver = ScandResolver()
+
+        self._resolver.password = 'Qwerty#0'
+
+        remote = getattr(self._args, Const.Remote_update, False)
+        self._resolver.remote_update = remote
+        self._resolver.update()
 
     def __process_args(self):
-        log.debug("Self args: %s" % self.__args)
+        log.debug("Self args: %s" % self._args)
         #Callback is starting from process_...
-        name  = 'process_'+self.__args.__dict__[Const.Subprsr_name]
+        name  = 'process_'+self._args.__dict__[Const.Subprsr_name]
         callback = getattr(self, name)
         if callback:
             callback()
 
-
     def process_get(self):
-        key = getattr(self.__args, Const.Get.Key, None)
-        password = self.__resolver.password_for_name(key, '')
+        key = getattr(self._args, Const.Get.Key, None)
+        password = self._resolver.password_for_name(key, '')
         clip.copy(password)
+        log.debug("Clipboard content: %s" % clip.paste())
 
     def process_add(self):
-        key = getattr(self.__args, Const.Add.Key, None)
-        password = getattr(self.__args, Const.Add.Password, None)
+        key = getattr(self._args, Const.Add.Key, None)
+        password = getattr(self._args, Const.Add.Password, None)
 
-        self.__resolver.add_password(key=key, password=password)
+        self._resolver.add_password(key=key, password=password)
         pass
 
     def process_restore(self):
         log.debug("Attempting to restore")
-        self.__resolver.restore()
+        self._resolver.restore()
         log.debug("Restored, no errors detected")
 
     def process_print(self):
-        data = self.__resolver.data()
-        print(json.dumps(data['Pairs'], indent=1))
+        pairs = self._resolver.pairs
+        print(json.dumps(pairs, indent=1))
 
+    def process_check_password(self):
+        key = getattr(self._args, Const.CheckPasword.Key, None)
+        result = bool(self._resolver.check_password(key))
+        print('Password ok' if result else 'Password does not match, try again')
 
     def main(self):
         self.__process_args()
-        log.debug("Clipboard content: %s" % clip.paste())
 
 if __name__ == "__main__":
     cmd = CmdCozyPassword()
