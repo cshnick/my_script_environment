@@ -44,7 +44,7 @@ ApplicationWindow {
     //States begin
     readonly property string common: 'common'
     readonly property string password: 'password'
-    readonly property string login: 'login'
+    property variant login: 'login'
     readonly property string add: "add"
 
     property string currentState: login
@@ -81,6 +81,13 @@ ApplicationWindow {
         _timer.repeat = false;
         _timer.triggered.connect(cb);
         _timer.start();
+    }
+
+    property variant statesDict:
+    {
+        "login" : "",
+        "" : function(string) {var i = 0; i += 10;},
+        "logout" : 5
     }
 
     Behavior on height {

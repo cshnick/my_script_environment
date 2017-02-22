@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from fnmatch import fnmatch
 from color.colorize import Color
 import re
+import imghdr
 
 log.basicConfig(level=log.DEBUG if 'DEBUG' in os.environ else log.WARNING,
                 format='%(asctime)s - %(levelname)s - %(message)s')
@@ -20,14 +21,15 @@ class DesktopFileResolver:
         HOME + '/.gnome/apps',
         '/usr/share/applications'
     ]
+    STEAM_APPS = HOME + '/.steam/steam/steamapps/common'
     DEFAULT_EDITOR = '/usr/bin/kwrite'
 
     def __init__(self):
-        self.__args = None
-        self.__extend_habitat()
+        self._args = None
+        self._extend_habitat()
 
     @staticmethod
-    def __extend_habitat():
+    def _extend_habitat():
         from os.path import join, isdir, exists
         from os import listdir
 
@@ -38,7 +40,7 @@ class DesktopFileResolver:
 
         [extend_sub(file) for file in DesktopFileResolver.HABITAT if exists(file)]
 
-    def __operate(self, callback):
+    def _operate(self, callback):
         callback.prev_dir = ''
         for hpath in self.HABITAT:
             for filename in os.listdir(hpath):
@@ -50,7 +52,7 @@ class DesktopFileResolver:
                     callback()
 
     def search(self):
-        pattern = self.__args.search_args[0]
+        pattern = self._args.search_args[0]
         regex = re.compile('(' + pattern + ')', re.IGNORECASE)
 
         def iter_cb(**kwargs):
@@ -60,12 +62,12 @@ class DesktopFileResolver:
                     iter_cb.prev_dir = iter_cb.next_dir
                 print('\t%s' % regex.sub(Color('\\1').as_red(), iter_cb.filename))
 
-        self.__operate(iter_cb)
+        self._operate(iter_cb)
 
     def open(self):
         from subprocess import Popen
 
-        pattern = self.__args.search_args[0]
+        pattern = self._args.search_args[0]
         regex = re.compile('(' + pattern + ')', re.IGNORECASE)
         editor = self.DEFAULT_EDITOR
         if 'EDITOR' in os.environ:
@@ -76,7 +78,22 @@ class DesktopFileResolver:
                 fullpath = os.path.join(iter_cb.next_dir, iter_cb.filename)
                 Popen([editor, fullpath])
 
-        self.__operate(iter_cb)
+        self._operate(iter_cb)
+
+    def icons(self):
+        from os.path import join, isdir, exists
+        from os import listdir
+
+        pattern = self._args.search_arg
+        verbose = self._args.verbose
+        regex = re.compile('(' + pattern + ')', re.IGNORECASE)
+        games_match = [join(self.STEAM_APPS, fname) for fname in listdir(self.STEAM_APPS) if regex.search(fname)]
+        for game in games_match:
+            print('%s:' % Color(game).as_green())
+            for p, d, files in os.walk(game):
+                [print('\t%s' % join(p, regex.sub(Color('\\1').as_red(), fname)))
+                 for fname in files
+                 if imghdr.what(join(p, fname)) and (regex.search(fname) or verbose)]
 
     def main(self):
         parser = ArgumentParser("Search and open desktop files by patterns")
@@ -89,9 +106,13 @@ class DesktopFileResolver:
         parser_open = subparsers.add_parser('open', help='open')
         parser_open.add_argument('search_args', help='Enter search args for files to open', nargs='+')
 
-        self.__args = parser.parse_args()
+        parser_icon = subparsers.add_parser('icons', help='print proposed icons')
+        parser_icon.add_argument('search_arg', help='Enter search args for files to open')
+        parser_icon.add_argument('-v', '--verbose', help="Print all not only pattern matched", action='store_true')
 
-        callback = getattr(self, self.__args.callback)
+        self._args = parser.parse_args()
+
+        callback = getattr(self, self._args.callback)
         if callback:
             callback()
 
