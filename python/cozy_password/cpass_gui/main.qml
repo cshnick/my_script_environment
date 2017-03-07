@@ -44,11 +44,85 @@ ApplicationWindow {
     //States begin
     readonly property string common: 'common'
     readonly property string password: 'password'
-    property variant login: 'login'
+    readonly property string login: 'login'
     readonly property string add: "add"
+    readonly property string command: "command"
 
-    property string currentState: login
-    //States end
+    property string currentState: state_machine.initial
+
+    function switch_state(newstate) {
+        actions_stack.push(state_machine[currentState])
+        currentState = newstate
+    }
+
+    property var actions_stack : new Array()
+    property var state_machine:
+        ({
+             initial : login,
+             login :
+                 ({
+                      container :
+                          ({
+                               width: 0,
+                               text: "",
+                           }),
+                      placeholder: "Password sir",
+                      onTextChanged : function() {
+                      },
+                      onReturn : function() {
+                          if (_resolver.check_password(_textField.text)) {
+                              _enterField.style = _normalTFStyle
+                              switch_state(common)
+                          } else {
+                              _textField.text = ''
+                              _enterField.style = _errorTFStyle
+                              var oldtext = _enterField.placeholderText
+                              _enterField.placeholderText = "Incorrect, sir"
+                              delay(1000 ,function() {
+                                  _enterField.placeholderText = oldtext
+                                  _enterField.style = _normalTFStyle
+                              })
+                          }
+                      },
+                      onEscape : function() {
+                          Qt.quit()
+                      }
+                  }),
+             common :
+                 ({
+                      container :
+                          ({
+                               width: 0,
+                               text: ""
+                           }),
+                      onTextChanged : function () {},
+                      onReturn : function() {},
+                      onEscape : function() {}
+                  }),
+             password :
+                 ({
+                      container :
+                          ({
+                               width: 0,
+                               text: ""
+                           }),
+                      onTextChanged : function () {},
+                      onReturn : function() {},
+                      onEscape : function() {}
+                  }),
+             add :
+                 ({
+                      container :
+                          ({
+                               width: 0,
+                               text: ""
+                           }),
+                      onTextChanged : function () {},
+                      onReturn : function() {},
+                      onEscape : function() {}
+                  })
+         })
+
     property string storedText: ''
 
     function rand_color() {
@@ -83,19 +157,12 @@ ApplicationWindow {
         _timer.start();
     }
 
-    property variant statesDict:
-    {
-        "login" : "",
-        "" : function(string) {var i = 0; i += 10;},
-        "logout" : 5
-    }
-
-    Behavior on height {
+    /*Behavior on height {
         NumberAnimation {
             duration: 150
             easing.type: Easing.InOutQuad
         }
-    }
+    }*/
 
     Resolver {
         id: _resolver
@@ -132,6 +199,7 @@ ApplicationWindow {
 
     Rectangle {
         id: _textField
+
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
@@ -150,28 +218,45 @@ ApplicationWindow {
             _enterField.text = ''
         }
 
+        state: mwn.login
         states: [
-            State {
+            StateEx {
+              id: _login
+              name: mwn.login
+              onReturn: {
+                  console.log("Return")
+              }
+              onTextChanged: function (text) {
+                  console.log("TextChanged")
+              }
+            },
+            StateEx {
                 name: mwn.common
             },
             State {
                 name: mwn.add
                 PropertyChanges {
                     target: _customContainer
-                    explicitwidth: 100 * dp
-                    text: "Add"
+                    explicitwidth: 50 * dp
+                    text: "NEW"
                 }
-                //when: currentState === mwn.add
+                when: mwn.currentState === mwn.add
             },
             State {
-                name: mwn.login
+                name: mwn.password
+                PropertyChanges {
+                    target: _customContainer
+                    explicitwidth: 140 * dp
+                    text: "NEW PASSWORD"
+                }
             }
         ]
 
         Rectangle {
             id: _customContainer
 
-            property int explicitwidth: currentState == mwn.password ? 130 * mwn.dp : 0
+            //roperty int explicitwidth: currentState == mwn.password ? 130 * mwn.dp : 0
+            property int explicitwidth: mwn.state_machine[currentState].container.width
             property alias text: _customContainerContent.text
             //width: children.width
 
@@ -190,7 +275,7 @@ ApplicationWindow {
             Text {
                 id: _customContainerContent
 
-                text: ''
+                text: mwn.state_machine[currentState].container.text
                 color: "white"
                 font.pixelSize: 14 * mwn.dp
                 anchors.fill: parent
@@ -218,63 +303,53 @@ ApplicationWindow {
                     return TextInput.Normal
                 }
             }
-            onTextChanged: {
-                if (!login_succeeded || mwn.currentState !== mwn.common)
-                    return
-                switch (currentState) {
-                case mwn.common:
-                    if (mwn.pythonModel.length !== 0) {
-                        _customContainer.state = mwn.add
-                    }
-                    break
-                }
 
-                var keys = _resolver.keys
-                pythonModel = keys.filter(function(obj) {
-                    var rx = new RegExp(text, 'i')
-                    if (rx.test(obj)) {
-                        return true
-                    }
-                    return false
-                })
+            onTextChanged: {
+                console.log("State: " + _textField.state)
+                _login.onTextChanged(text)
+                /*switch (currentState) {
+                case mwn.login:
+                    break
+                case mwn.common:
+                case mwn.add:
+                    var keys = _resolver.keys
+                    pythonModel = keys.filter(function(obj) {
+                        var rx = new RegExp(text, 'i')
+                        if (rx.test(obj)) {
+                            return true
+                        }
+                        return false
+                    })
+
+                    mwn.pythonModel.length === 0 ? currentState = mwn.add : currentState = mwn.common
+                    break
+                }*/
             }
 
             focus: true
-            placeholderText: "Password sir"
+            placeholderText: state_machine[currentState].placeholder
 
             Keys.onPressed: {
                 console.log("Event key: " + event.key)
                 switch (event.key) {
                 case Qt.Key_Up:
-                    __view.move(__view.up)
+                    _view.move(_view.up)
                     event.accepted = true
                     break
                 case Qt.Key_Down:
-                    __view.move(__view.down)
+                    _view.move(_view.down)
                     event.accepted = true
                     break
                 }
             }
             Keys.onReturnPressed: {
                 console.log("Return operations")
-                switch (mwn.currentState) {
-                case mwn.login:
-                    if (_resolver.check_password(_textField.text)) {
-                        _textField.text = ''
-                        _enterField.style = _normalTFStyle
-                        mwn.currentState = mwn.common
-                        _enterField.placeholderText = ''
-                    } else {
-                        _textField.text = ''
-                        _enterField.style = _errorTFStyle
-                        var oldText = _enterField.placeholderText
-                        _enterField.placeholderText = "Incorrect, sir"
-                        delay(1000 ,function() {
-                            _enterField.placeholderText = "Password, sir"
-                            _enterField.style = _normalTFStyle
-                        })
-                    }
-                    break
+
+                var localMachine = mwn.state_machine
+                localMachine[currentState].onReturn()
+                mwn.state_machine = localMachine
+
+                /*switch (mwn.currentState) {
                 case mwn.password:
                     mwn.currentState = mwn.common
                     break;
@@ -283,12 +358,12 @@ ApplicationWindow {
                         _textField.newEntry()
                         currentState = add
                     } else {
-                        _resolver.k2p_clipboard(pythonModel[__view.currentIndex])
+                        _resolver.k2p_clipboard(pythonModel[_view.currentIndex])
                         mwn.hide()
                         Qt.quit()
                     }
                     break;
-                }
+                }*/
                 event.accepted = true
             }
             Keys.onEscapePressed: {
@@ -304,24 +379,6 @@ ApplicationWindow {
                     break
                 case mwn.add:
                     break
-                }
-            }
-
-            Item {
-                height: parent.height * 0.7
-                width: height
-                visible: {console.log("PML: " + pythonModel.length); return pythonModel.length === 0 && login_succeeded}
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.rightMargin: width * 0.15
-
-                Image {
-                    anchors.fill: parent
-                    source: 'new_entry.svg'
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked:  _textField.newEntry()
                 }
             }
 
@@ -351,7 +408,7 @@ ApplicationWindow {
     }
 
     ListView {
-        id: __view
+        id: _view
 
         anchors.top: _textField.bottom
         anchors.left: parent.left
@@ -359,6 +416,8 @@ ApplicationWindow {
         height: pythonModel.length * row_height
         clip: true
         model: pythonModel
+
+        signal explicitIndexChanged(int index)
 
         readonly property int up : 0
         readonly property int down : 1
@@ -426,14 +485,7 @@ ApplicationWindow {
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
-                    __view.currentIndex = index
-                }
-            }
-
-            Behavior on height {
-                NumberAnimation {
-                    duration: 150
-                    easing.type: Easing.InOutQuad
+                    _view.currentIndex = index
                 }
             }
         }

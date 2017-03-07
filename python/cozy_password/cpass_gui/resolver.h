@@ -22,7 +22,7 @@ public:
     Q_SIGNAL void keysChanged(const QStringList &newKey);
 
     Q_SLOT void k2p_clipboard() {qDebug() << "TEST!!!";}
-    Q_SLOT bool check_password() {return true;}
+    Q_SLOT bool check_password(const QString &param) {return !param.compare("rbhpf");}
 
 private:
     QString name_;
