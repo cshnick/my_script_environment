@@ -49,15 +49,15 @@ ApplicationWindow {
     readonly property string add: "add"
     readonly property string command: "command"
 
-    property string currentState: state_machine.initial
+    property string currentState: modes.initial
 
     function switch_state(newstate) {
-        actions_stack.push(state_machine[currentState])
+        actions_stack.push(modes[currentState])
         currentState = newstate
     }
 
     property var actions_stack : []
-    property var state_machine:
+    property var modes:
         ({
              initial : login,
              login :
@@ -95,7 +95,7 @@ ApplicationWindow {
                       container :
                           ({
                                width: 100 * dp,
-                               text: "COMMON"
+                               text: common
                            }),
                       echomode: TextInput.Normal,
                       placeholder: "",
@@ -226,7 +226,7 @@ ApplicationWindow {
             id: _customContainer
 
             //roperty int explicitwidth: currentState == mwn.password ? 130 * mwn.dp : 0
-            property int explicitwidth: mwn.state_machine[currentState].container.width
+            property int explicitwidth: mwn.modes[currentState].container.width
             property alias text: _customContainerContent.text
             //width: children.width
 
@@ -245,10 +245,10 @@ ApplicationWindow {
             Text {
                 id: _customContainerContent
 
-                text: mwn.state_machine[currentState].container.text
+                text: mwn.modes[currentState].container.text
                 color: "white"
-                font.pixelSize: 14 * mwn.dp
-                font.bold: true
+                font.pixelSize: 22 * mwn.dp
+                font.bold: false
                 anchors.fill: parent
                 anchors.leftMargin: mwn.spacing
                 renderType: Text.NativeRendering
@@ -264,11 +264,11 @@ ApplicationWindow {
             width: parent.width - _customContainer.width - 2*mwn.border_width
             height: parent.height - 3*mwn.border_width
             font.pixelSize: 24 * mwn.dp
-            echoMode: state_machine[currentState].echomode
+            echoMode: modes[currentState].echomode
 
             onTextChanged: {
                 console.log("text changed, state: " + currentState)
-                state_machine[currentState].onTextChanged()
+                modes[currentState].onTextChanged()
                 /*switch (currentState) {
                 case mwn.login:
                     break
@@ -289,7 +289,7 @@ ApplicationWindow {
             }
 
             focus: true
-            placeholderText: state_machine[currentState].placeholder
+            placeholderText: modes[currentState].placeholder
 
             Keys.onPressed: {
                 console.log("Event key: " + event.key)
@@ -310,9 +310,9 @@ ApplicationWindow {
                 console.log("pixel density: " + Screen.pixelDensity)
                 console.log("high res: " + high_resolution_desktop)
 
-                var localMachine = mwn.state_machine
+                var localMachine = mwn.modes
                 localMachine[currentState].onReturn()
-                mwn.state_machine = localMachine
+                mwn.modes = localMachine
 
                 /*switch (mwn.currentState) {
                 case mwn.password:
