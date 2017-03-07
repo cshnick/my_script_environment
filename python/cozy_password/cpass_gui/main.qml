@@ -8,8 +8,9 @@ import PyResolver 1.0
 ApplicationWindow {
     id: mwn
 
-    property real dpi: Screen.pixelDensity * 25.4
-    property real dp: {return dpi < 120 ? 1 : dpi /160}
+    readonly property real dpi: Screen.pixelDensity * 25.4
+    readonly property bool high_resolution_desktop: Screen.pixelDensity > 3.77 ? Screen.pixelDensity < 4.92 ? true : false : false
+    property real dp: high_resolution_desktop ? 1.25 : 1
     property int spacing: 8 * dp
     property int row_height: 40 * dp
 
@@ -55,7 +56,7 @@ ApplicationWindow {
         currentState = newstate
     }
 
-    property var actions_stack : new Array()
+    property var actions_stack : []
     property var state_machine:
         ({
              initial : login,
@@ -66,6 +67,7 @@ ApplicationWindow {
                                width: 0,
                                text: "",
                            }),
+                      echomode: TextInput.Password,
                       placeholder: "Password sir",
                       onTextChanged : function() {
                       },
@@ -92,9 +94,11 @@ ApplicationWindow {
                  ({
                       container :
                           ({
-                               width: 0,
-                               text: ""
+                               width: 100 * dp,
+                               text: "COMMON"
                            }),
+                      echomode: TextInput.Normal,
+                      placeholder: "",
                       onTextChanged : function () {},
                       onReturn : function() {},
                       onEscape : function() {}
@@ -218,40 +222,6 @@ ApplicationWindow {
             _enterField.text = ''
         }
 
-        state: mwn.login
-        states: [
-            StateEx {
-              id: _login
-              name: mwn.login
-              onReturn: {
-                  console.log("Return")
-              }
-              onTextChanged: function (text) {
-                  console.log("TextChanged")
-              }
-            },
-            StateEx {
-                name: mwn.common
-            },
-            State {
-                name: mwn.add
-                PropertyChanges {
-                    target: _customContainer
-                    explicitwidth: 50 * dp
-                    text: "NEW"
-                }
-                when: mwn.currentState === mwn.add
-            },
-            State {
-                name: mwn.password
-                PropertyChanges {
-                    target: _customContainer
-                    explicitwidth: 140 * dp
-                    text: "NEW PASSWORD"
-                }
-            }
-        ]
-
         Rectangle {
             id: _customContainer
 
@@ -278,6 +248,7 @@ ApplicationWindow {
                 text: mwn.state_machine[currentState].container.text
                 color: "white"
                 font.pixelSize: 14 * mwn.dp
+                font.bold: true
                 anchors.fill: parent
                 anchors.leftMargin: mwn.spacing
                 renderType: Text.NativeRendering
@@ -293,20 +264,11 @@ ApplicationWindow {
             width: parent.width - _customContainer.width - 2*mwn.border_width
             height: parent.height - 3*mwn.border_width
             font.pixelSize: 24 * mwn.dp
-            echoMode: {
-                login_succeeded ? TextInput.Normal : TextInput.Password
-                switch (mwn.currentState) {
-                case mwn.login:
-                case mwn.password:
-                    return TextInput.Password
-                default:
-                    return TextInput.Normal
-                }
-            }
+            echoMode: state_machine[currentState].echomode
 
             onTextChanged: {
-                console.log("State: " + _textField.state)
-                _login.onTextChanged(text)
+                console.log("text changed, state: " + currentState)
+                state_machine[currentState].onTextChanged()
                 /*switch (currentState) {
                 case mwn.login:
                     break
@@ -344,6 +306,9 @@ ApplicationWindow {
             }
             Keys.onReturnPressed: {
                 console.log("Return operations")
+                console.log("dpi: " + dpi)
+                console.log("pixel density: " + Screen.pixelDensity)
+                console.log("high res: " + high_resolution_desktop)
 
                 var localMachine = mwn.state_machine
                 localMachine[currentState].onReturn()

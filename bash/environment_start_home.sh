@@ -12,7 +12,7 @@
 #qdbus org.kde.yakuake /yakuake/tabs sessionAtTab 2 & #1>/dev/null 2>/dev/null &
 
 xhost +
-xinput set-prop 10 288 -0.4
+xinput set-prop 9 285 -0.5
 #bluetooth-start
 #sleep 10 
 #reload-compositor &
