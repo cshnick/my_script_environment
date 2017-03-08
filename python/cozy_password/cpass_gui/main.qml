@@ -52,7 +52,11 @@ ApplicationWindow {
     property string currentState: modes.initial
 
     function switch_state(newstate) {
-        actions_stack.push(modes[currentState])
+        actions_stack.push(currentState)
+        currentState = newstate
+    }
+
+    function return_state(newstate) {
         currentState = newstate
     }
 
@@ -62,6 +66,7 @@ ApplicationWindow {
              initial : login,
              login :
                  ({
+                      model: [],
                       container :
                           ({
                                width: 0,
@@ -69,7 +74,7 @@ ApplicationWindow {
                            }),
                       echomode: TextInput.Password,
                       placeholder: "Password sir",
-                      onTextChanged : function() {
+                      onTextChanged : function(text) {
                       },
                       onReturn : function() {
                           if (_resolver.check_password(_textField.text)) {
@@ -92,6 +97,7 @@ ApplicationWindow {
                   }),
              common :
                  ({
+                      model : [],
                       container :
                           ({
                                width: 100 * dp,
@@ -99,9 +105,21 @@ ApplicationWindow {
                            }),
                       echomode: TextInput.Normal,
                       placeholder: "",
-                      onTextChanged : function () {},
+                      onTextChanged : function (text) {
+                          var keys = _resolver.keys
+                          listModel = keys.filter(function(obj) {
+                              var rx = new RegExp(text, 'i')
+                              if (rx.test(obj)) {
+                                  return true
+                              }
+                              return false
+                          })
+                      },
                       onReturn : function() {},
-                      onEscape : function() {}
+                      onEscape : function() {
+                          var staterestore = actions_stack.pop()
+                          return_state(staterestore)
+                      }
                   }),
              password :
                  ({
@@ -110,7 +128,7 @@ ApplicationWindow {
                                width: 0,
                                text: ""
                            }),
-                      onTextChanged : function () {},
+                      onTextChanged : function (text) {},
                       onReturn : function() {},
                       onEscape : function() {}
                   }),
@@ -118,10 +136,10 @@ ApplicationWindow {
                  ({
                       container :
                           ({
-                               width: 0,
-                               text: ""
+                               width: 100 * dp,
+                               text: "add"
                            }),
-                      onTextChanged : function () {},
+                      onTextChanged : function (text) {},
                       onReturn : function() {},
                       onEscape : function() {}
                   })
@@ -161,18 +179,18 @@ ApplicationWindow {
         _timer.start();
     }
 
-    /*Behavior on height {
+    Behavior on height {
         NumberAnimation {
             duration: 150
             easing.type: Easing.InOutQuad
         }
-    }*/
+    }
 
     Resolver {
         id: _resolver
     }
 
-    property var pythonModel: currentState === login ?  [] : _resolver.keys
+    property var listModel: modes[currentState].model
     property ListModel emptyModel: ListModel {}
     property ListModel fullModel:  ListModel {
         ListElement {name: "text1"}
@@ -267,25 +285,7 @@ ApplicationWindow {
             echoMode: modes[currentState].echomode
 
             onTextChanged: {
-                console.log("text changed, state: " + currentState)
-                modes[currentState].onTextChanged()
-                /*switch (currentState) {
-                case mwn.login:
-                    break
-                case mwn.common:
-                case mwn.add:
-                    var keys = _resolver.keys
-                    pythonModel = keys.filter(function(obj) {
-                        var rx = new RegExp(text, 'i')
-                        if (rx.test(obj)) {
-                            return true
-                        }
-                        return false
-                    })
-
-                    mwn.pythonModel.length === 0 ? currentState = mwn.add : currentState = mwn.common
-                    break
-                }*/
+                modes[currentState].onTextChanged(text)
             }
 
             focus: true
@@ -332,19 +332,7 @@ ApplicationWindow {
                 event.accepted = true
             }
             Keys.onEscapePressed: {
-                console.log("Escape operations")
-                switch (mwn.currentState) {
-                case mwn.login:
-                case mwn.common:
-                    Qt.quit()
-                    break
-                case mwn.password:
-                    _textField.text = mwn.storedText
-                    mwn.currentState = mwn.common
-                    break
-                case mwn.add:
-                    break
-                }
+                modes[currentState].onEscape()
             }
 
             style: _normalTFStyle
@@ -378,9 +366,9 @@ ApplicationWindow {
         anchors.top: _textField.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        height: pythonModel.length * row_height
+        height: listModel.length * row_height
         clip: true
-        model: pythonModel
+        model: listModel
 
         signal explicitIndexChanged(int index)
 
@@ -409,7 +397,7 @@ ApplicationWindow {
         }
 
         delegate: Item {
-            property string content: pythonModel[index]
+            property string content: listModel[index]
             property string highlightColor: custom_hash_index(content)
 
             //color: "white"

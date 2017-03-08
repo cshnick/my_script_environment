@@ -9,14 +9,6 @@
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-
-    QLocalServer srv;
-    bool result = srv.listen("Theserver");
-
-    qDebug() << "Error: " << srv.serverError();
-
-    srv.close();
-
     QQmlApplicationEngine engine;
     //qmlRegisterUncreatableType<Resolver>("PyResolver", 1, 0, "Resolver", QStringLiteral("The Resolver"));
     qmlRegisterType<Resolver>("PyResolver", 1, 0, "Resolver");
