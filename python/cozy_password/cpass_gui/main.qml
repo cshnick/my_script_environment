@@ -46,8 +46,10 @@ ApplicationWindow {
     readonly property string common: 'common'
     readonly property string password: 'password'
     readonly property string login: 'login'
-    readonly property string add: "add"
     readonly property string command: "command"
+    readonly property string add: "add"
+    readonly property string set: "set"
+    readonly property string remove: "del"
 
     property string currentState: modes.initial
 
@@ -58,8 +60,12 @@ ApplicationWindow {
 
     function return_state(newstate) {
         currentState = newstate
+        update()
     }
 
+    property var commands : [
+
+    ]
     property var actions_stack : []
     property var modes:
         ({
@@ -80,6 +86,7 @@ ApplicationWindow {
                           if (_resolver.check_password(_textField.text)) {
                               _enterField.style = _normalTFStyle
                               switch_state(common)
+                              _enterField.text = ''
                           } else {
                               _textField.text = ''
                               _enterField.style = _errorTFStyle
@@ -100,8 +107,8 @@ ApplicationWindow {
                       model : [],
                       container :
                           ({
-                               width: 100 * dp,
-                               text: common
+                               width: 0,
+                               text: ""
                            }),
                       echomode: TextInput.Normal,
                       placeholder: "",
@@ -114,34 +121,48 @@ ApplicationWindow {
                               }
                               return false
                           })
+                          if (!listModel.length) {
+                              switch_state(add)
+                          }
                       },
                       onReturn : function() {},
                       onEscape : function() {
                           var staterestore = actions_stack.pop()
                           return_state(staterestore)
+                          //FIXME Not updated automatically
+                          listModel = []
                       }
                   }),
              password :
                  ({
                       container :
                           ({
-                               width: 0,
-                               text: ""
+                               width: 115 * dp,
+                               text: "password"
                            }),
+                      echomode: TextInput.Password,
                       onTextChanged : function (text) {},
                       onReturn : function() {},
-                      onEscape : function() {}
+                      onEscape : function() {
+                          return_state(actions_stack.pop())
+                      }
                   }),
              add :
                  ({
                       container :
                           ({
-                               width: 100 * dp,
+                               width: 60 * dp,
                                text: "add"
                            }),
+                      echomode : TextInput.Normal,
                       onTextChanged : function (text) {},
-                      onReturn : function() {},
-                      onEscape : function() {}
+                      onReturn : function() {
+                          switch_state(password)
+                          _enterField.text = ''
+                      },
+                      onEscape : function() {
+                          return_state(actions_stack.pop())
+                      }
                   })
          })
 
@@ -179,12 +200,12 @@ ApplicationWindow {
         _timer.start();
     }
 
-    Behavior on height {
+    /*Behavior on height {
         NumberAnimation {
             duration: 150
             easing.type: Easing.InOutQuad
         }
-    }
+    }*/
 
     Resolver {
         id: _resolver
