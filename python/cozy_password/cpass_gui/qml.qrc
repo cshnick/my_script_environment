@@ -1,6 +1,6 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
-        <file>new_entry.svg</file>
+        <file>eye.svg</file>
     </qresource>
 </RCC>

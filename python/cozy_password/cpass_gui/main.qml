@@ -46,10 +46,10 @@ ApplicationWindow {
     readonly property string common: 'common'
     readonly property string password: 'password'
     readonly property string login: 'login'
-    readonly property string command: "command"
+    readonly property string cmd: "cmd"
     readonly property string add: "add"
     readonly property string set: "set"
-    readonly property string remove: "del"
+    readonly property string del: "del"
 
     property string currentState: modes.initial
 
@@ -60,13 +60,12 @@ ApplicationWindow {
 
     function return_state(newstate) {
         currentState = newstate
-        update()
     }
 
-    property var commands : [
-
-    ]
-    property var actions_stack : []
+    property var commands : ([
+        add, set, del
+    ])
+    property var actions_stack : ([])
     property var modes:
         ({
              initial : login,
@@ -75,10 +74,15 @@ ApplicationWindow {
                       model: [],
                       container :
                           ({
-                               width: 0,
-                               text: "",
+                               width: 70 * dp,
+                               text: "login",
                            }),
-                      echomode: TextInput.Password,
+                      customButton :
+                          ({
+                               visible : true
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode: _customButton.pressed ? TextInput.Normal : TextInput.Password,
                       placeholder: "Password sir",
                       onTextChanged : function(text) {
                       },
@@ -98,6 +102,8 @@ ApplicationWindow {
                               })
                           }
                       },
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
                       onEscape : function() {
                           Qt.quit()
                       }
@@ -110,22 +116,34 @@ ApplicationWindow {
                                width: 0,
                                text: ""
                            }),
+                      customButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
                       echomode: TextInput.Normal,
                       placeholder: "",
                       onTextChanged : function (text) {
-                          var keys = _resolver.keys
-                          listModel = keys.filter(function(obj) {
-                              var rx = new RegExp(text, 'i')
-                              if (rx.test(obj)) {
-                                  return true
-                              }
-                              return false
-                          })
-                          if (!listModel.length) {
-                              switch_state(add)
+                          if (text[0] === ':') {
+                              listModel = []
+                              switch_state(cmd)
+                              _enterField.text = _enterField.text.substring(1)
+                          } else {
+                              var keys = _resolver.keys
+                              listModel = keys.filter(function(obj) {
+                                  var rx = new RegExp(text, 'i')
+                                  if (rx.test(obj)) {
+                                      return true
+                                  }
+                                  return false
+                              })
                           }
                       },
                       onReturn : function() {},
+                      onListIndexChanged : function(index) {
+                          console.log("On commmon list index: " + index)
+                      },
+                      onListIndexAccepted : function(index) {},
                       onEscape : function() {
                           var staterestore = actions_stack.pop()
                           return_state(staterestore)
@@ -140,9 +158,49 @@ ApplicationWindow {
                                width: 115 * dp,
                                text: "password"
                            }),
-                      echomode: TextInput.Password,
+                      customButton :
+                          ({
+                               visible : true
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode: (_customButton.pressed ? TextInput.Normal : TextInput.Password),
+                      placeholder: '',
                       onTextChanged : function (text) {},
                       onReturn : function() {},
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          return_state(actions_stack.pop())
+                      }
+                  }),
+             cmd :
+                 ({
+                      container :
+                          ({
+                               width: 60 * dp,
+                               text: cmd
+                           }),
+                      customButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode : TextInput.Normal,
+                      placeholder : '',
+                      onTextChanged : function (text) {
+                          var rx = new RegExp("(" + commands.join('|') + ")\\s(.*)", 'i')
+                          var rxmatch = text.match(rx)
+                          if (rxmatch) {
+                              switch_state(rxmatch[1])
+                              _enterField.text = rxmatch[2]
+                          }
+                      },
+                      onReturn : function() {
+                          this.onTextChanged(_enterField.text + ' ')
+                      },
+                      onListIndexChanged : function(index) {
+                      },
+                      onListIndexAccepted : function(index) {},
                       onEscape : function() {
                           return_state(actions_stack.pop())
                       }
@@ -154,12 +212,80 @@ ApplicationWindow {
                                width: 60 * dp,
                                text: "add"
                            }),
+                      customButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
                       echomode : TextInput.Normal,
+                      placeholder : '',
+                      onTextChanged : function (text) {
+                          if (_resolver.contains(text)) {
+                              _enterField.style = _redTFStyle
+                          } else {
+                              _enterField.style = _normalTFStyle
+                          }
+                      },
+                      onReturn : function() {
+                          if (_enterField.style === _normalTFStyle) {
+                              switch_state(password)
+                              _enterField.text = ''
+                          }
+                      },
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          return_state(actions_stack.pop())
+                          //FIXME Automaticly edjust
+                          _enterField.style = _normalTFStyle
+                      }
+                  }),
+             set :
+                 ({
+                      container :
+                          ({
+                               width: 60 * dp,
+                               text: "set"
+                           }),
+                      customButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode : TextInput.Normal,
+                      placeholder : '',
                       onTextChanged : function (text) {},
                       onReturn : function() {
                           switch_state(password)
                           _enterField.text = ''
                       },
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          return_state(actions_stack.pop())
+                      }
+                  }),
+             del :
+                 ({
+                      container :
+                          ({
+                               width: 60 * dp,
+                               text: "del"
+                           }),
+                      customButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode : TextInput.Normal,
+                      placeholder : '',
+                      onTextChanged : function (text) {},
+                      onReturn : function() {
+                          switch_state(password)
+                          _enterField.text = ''
+                      },
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
                       onEscape : function() {
                           return_state(actions_stack.pop())
                       }
@@ -212,19 +338,6 @@ ApplicationWindow {
     }
 
     property var listModel: modes[currentState].model
-    property ListModel emptyModel: ListModel {}
-    property ListModel fullModel:  ListModel {
-        ListElement {name: "text1"}
-        ListElement {name: "text2"}
-        ListElement {name: "text3"}
-        ListElement {name: "text4"}
-    }
-
-    property var alterModel: [
-        'Key1',
-        'Key2',
-        'Key3'
-    ]
 
     x: (Screen.width - width) / 2
     y: (Screen.height - 480 * mwn.dp) / 2
@@ -313,7 +426,7 @@ ApplicationWindow {
             placeholderText: modes[currentState].placeholder
 
             Keys.onPressed: {
-                console.log("Event key: " + event.key)
+                //console.log("Event key: " + event.key)
                 switch (event.key) {
                 case Qt.Key_Up:
                     _view.move(_view.up)
@@ -326,37 +439,33 @@ ApplicationWindow {
                 }
             }
             Keys.onReturnPressed: {
-                console.log("Return operations")
-                console.log("dpi: " + dpi)
-                console.log("pixel density: " + Screen.pixelDensity)
-                console.log("high res: " + high_resolution_desktop)
-
-                var localMachine = mwn.modes
-                localMachine[currentState].onReturn()
-                mwn.modes = localMachine
-
-                /*switch (mwn.currentState) {
-                case mwn.password:
-                    mwn.currentState = mwn.common
-                    break;
-                case mwn.common:
-                    if (pythonModel.length === 0) {
-                        _textField.newEntry()
-                        currentState = add
-                    } else {
-                        _resolver.k2p_clipboard(pythonModel[_view.currentIndex])
-                        mwn.hide()
-                        Qt.quit()
-                    }
-                    break;
-                }*/
+                if (_view.count) {
+                    mwn.modes[currentState].onListIndexAccepted(_view.currentIndex)
+                }
+                mwn.modes[currentState].onReturn()
                 event.accepted = true
             }
             Keys.onEscapePressed: {
                 modes[currentState].onEscape()
             }
 
-            style: _normalTFStyle
+            style:  modes[currentState].tfstyle
+
+            Button {
+                id: _customButton
+
+                height: parent.height / 1.5
+                width: height
+                visible: modes[currentState].customButton.visible
+                anchors.rightMargin: height / 2
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.right: parent.right
+                style: ButtonStyle {
+                    background: Image {
+                        source: "eye.svg"
+                    }
+                }
+            }
         }
     }
 
@@ -378,6 +487,16 @@ ApplicationWindow {
                 border.width: 0//mwn.border_width
             }
             placeholderTextColor: colors.red
+        }
+    }
+    Component {
+        id: _redTFStyle
+        TextFieldStyle {
+            background: Rectangle {
+                border.color: mwn.border_color
+                border.width: 0//mwn.border_width
+            }
+            textColor: colors.red
         }
     }
 
@@ -415,6 +534,7 @@ ApplicationWindow {
                 }
                 break
             }
+            modes[currentState].onListIndexChanged(currentIndex)
         }
 
         delegate: Item {
@@ -460,6 +580,7 @@ ApplicationWindow {
                 anchors.fill: parent
                 onClicked: {
                     _view.currentIndex = index
+                    modes[currentState].onListIndexAccepted(index)
                 }
             }
         }
