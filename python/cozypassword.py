@@ -1,42 +1,57 @@
 #!/usr/bin/python3
 
 from sys import version_info
-#python 2.x
-if version_info.major < 3:
-    import clipboard as clip
-#pyrhon 3.x
-else:
-    import pyperclip as clip
 
 from argparse import ArgumentParser
 from cozy_password.resolver import ScandResolver
 from os.path import basename
 import logging as log
 import json
+from getpass import getpass
 
-class Const (object):
+# python 2.x
+if version_info.major < 3:
+    import clipboard as clip
+# pyrhon 3.x
+else:
+    import pyperclip as clip
+
+
+class Const(object):
     Subprsr_name = 'subparser_name'
     Remote_update = 'remote_update'
+    Password = "ext_passwd"
+
     class Restore:
         Name = 'restore'
+
     class Add:
         Name = "add"
         Key = "Add.Key"
-        Password  = "Add.Password"
+        Password = "Add.Password"
+
     class Get:
         Name = "get"
         Key = "Get.Key"
+
     class Print:
         Name = "print"
+
     class CheckPasword:
         Name = "check_password"
         Key = "Check.Key"
 
-class CmdCozyPassword (object):
+
+class PasswordError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+class CmdCozyPassword(object):
     def __init__(self):
         filename = basename(__file__)
         parser = ArgumentParser(filename)
-        parser.add_argument('-r', '--update_remote', help='update from remote repository', dest=Const.Remote_update, action='store_true')
+        parser.add_argument('-r', '--update_remote', help='update from remote repository', dest=Const.Remote_update,
+                            action='store_true')
 
         subparsers = parser.add_subparsers(help="Subparsers", dest=Const.Subprsr_name)
         parser_get = subparsers.add_parser(Const.Get.Name, help="Get password from key")
@@ -44,7 +59,8 @@ class CmdCozyPassword (object):
 
         parser_add = subparsers.add_parser(Const.Add.Name, help="Add new key-password pair")
         parser_add.add_argument('-k', '--key', help='key(human readable)', dest=Const.Add.Key, required=True)
-        parser_add.add_argument('-p', '--password', help='Password to store (generate if empty)', dest=Const.Add.Password)
+        parser_add.add_argument('-p', '--password', help='Password to store (generate if empty)',
+                                dest=Const.Add.Password)
 
         parser_restore = subparsers.add_parser(Const.Restore.Name, help="Attempt to restore(debug only)")
 
@@ -53,19 +69,19 @@ class CmdCozyPassword (object):
         parser_chck_password = subparsers.add_parser(Const.CheckPasword.Name, help="Check password")
         parser_chck_password.add_argument(Const.CheckPasword.Key, help='Password to check')
 
-        self._args =  parser.parse_args()
+        self._args = parser.parse_args()
         self._resolver = ScandResolver()
-
-        self._resolver.password = 'Qwerty#0'
-
         remote = getattr(self._args, Const.Remote_update, False)
         self._resolver.remote_update = remote
         self._resolver.update()
+        self._resolver.password = getpass()
+        if not self._resolver.check_password(self._resolver.password):
+            raise PasswordError("Incorrect password")
 
-    def __process_args(self):
+    def _process_args(self):
         log.debug("Self args: %s" % self._args)
-        #Callback is starting from process_...
-        name  = 'process_'+self._args.__dict__[Const.Subprsr_name]
+        # Callback is starting from process_...
+        name = 'process_' + self._args.__dict__[Const.Subprsr_name]
         callback = getattr(self, name)
         if callback:
             callback()
@@ -73,8 +89,9 @@ class CmdCozyPassword (object):
     def process_get(self):
         key = getattr(self._args, Const.Get.Key, None)
         password = self._resolver.password_for_name(key, '')
-        clip.copy(password)
-        log.debug("Clipboard content: %s" % clip.paste())
+        if (password):
+            clip.copy(password)
+            log.debug("Clipboard content: %s" % clip.paste())
 
     def process_add(self):
         key = getattr(self._args, Const.Add.Key, None)
@@ -98,8 +115,14 @@ class CmdCozyPassword (object):
         print('Password ok' if result else 'Password does not match, try again')
 
     def main(self):
-        self.__process_args()
+        self._process_args()
+
 
 if __name__ == "__main__":
-    cmd = CmdCozyPassword()
-    cmd.main()
+    try:
+        cmd = CmdCozyPassword()
+        cmd.main()
+    except PasswordError as passerr:
+        print(passerr)
+    except RuntimeError as runtimeerr:
+        print(runtimeerr)

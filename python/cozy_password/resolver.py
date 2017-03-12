@@ -1,13 +1,5 @@
 #!/usr/bin/env python
 
-from sys import version_info
-#python 2.x
-if version_info.major < 3:
-    from cStringIO import BytesIO
-    pass
-else:
-#python 3.x
-    from io import BytesIO
 import os
 import cozy_password.file_cryptor as file_cryptor
 from contextlib import contextmanager
@@ -15,17 +7,21 @@ from cozy_password.password_generator import generate_pass
 import logging as log
 import json
 from git import Repo
-from git.repo.fun import is_git_dir
 import git
+import time
+from io import BytesIO
 
 log.basicConfig(level=log.DEBUG if 'DEBUG' in os.environ else log.WARNING,
                 format='%(asctime)s - %(levelname)s - %(message)s')
 
+
 class ResolverBase(object):
     pass
 
+
 class DecodeError(Exception):
     pass
+
 
 @contextmanager
 def customopen(*args, **kwargs):
@@ -39,28 +35,17 @@ def customopen(*args, **kwargs):
     finally:
         stream.close()
 
-import time
+
 def profile(method):
     def deco(self, *args, **kwargs):
         start_time = time.time()
         ret = method(self, *args, **kwargs)
         elapsed_time = time.time() - start_time
-        log.debug('PROFILE - Method: %s, args: %s, elapsed: %s' % (method.__name__, args,elapsed_time * 1000))
+        log.debug('PROFILE - Method: %s, args: %s, elapsed: %s' % (method.__name__, args, elapsed_time * 1000))
         return ret
+
     return deco
 
-def load_on_demand(method):
-    def deco(self, *args, **kwargs):
-        if not self.pairs:
-            self.load()
-        return method(self, *args, **kwargs)
-    return deco
-
-def init_repo(method):
-    def deco(self, *args, **kwargs):
-        self._pull()
-        method(self, *args, **kwargs)
-    return deco
 
 def pull_if_required(method):
     def deco(self, *args, **kwargs):
@@ -70,11 +55,25 @@ def pull_if_required(method):
 
     return deco
 
+
 def push_if_required(method):
     def deco(self, *args, **kwargs):
+        log.critical("push")
         method(self, *args, **kwargs)
-        self._push()
+        if self._remote_update:
+            self._push()
+
     return deco
+
+
+def commit(method):
+    def deco(self, *args, **kwargs):
+        log.critical("Commit")
+        method(self, *args, **kwargs)
+        self._commit()
+
+    return deco
+
 
 class ScandResolver(ResolverBase):
     _Filename = "scand_map.json"
@@ -102,24 +101,29 @@ class ScandResolver(ResolverBase):
         self._enc_password = ''
         self._remote = self._Repo_remote_path
         self._remote_update = False
-        self._data = {self.Pairs_tag : {}}
+        self._data = {self.Pairs_tag: {}}
 
     @property
     def path(self):
         return os.path.join(self._encrypted_dir, self._encrypted_filename)
+
     @path.setter
     def path(self, value):
         self._encrypted_dir = os.path.dirname(value)
         self._encrypted_filename = os.path.basename(value)
 
     @property
-    def password(self): return self._enc_password
+    def password(self):
+        return self._enc_password
+
     @password.setter
-    def password(self, value): self._enc_password = value
+    def password(self, value):
+        self._enc_password = value
 
     @property
     def remote(self):
         return self._remote
+
     @remote.setter
     def remote(self, value):
         self._remote = value
@@ -129,9 +133,12 @@ class ScandResolver(ResolverBase):
         return self._data[self.Pairs_tag]
 
     @property
-    def remote_update(self): return self._remote_update
+    def remote_update(self):
+        return self._remote_update
+
     @remote_update.setter
-    def remote_update(self, value): self._remote_update = value
+    def remote_update(self, value):
+        self._remote_update = value
 
     @pull_if_required
     def password_for_name(self, name, default=None):
@@ -145,7 +152,7 @@ class ScandResolver(ResolverBase):
 
     @profile
     def check_password(self, chk):
-        empty_dic = {ScandResolver.Pairs_tag : {}}
+        empty_dic = {ScandResolver.Pairs_tag: {}}
         old_pass = self.password
         self.password = chk
         try:
@@ -155,6 +162,7 @@ class ScandResolver(ResolverBase):
 
         return True
 
+    @commit
     @push_if_required
     def add_password(self, key, password):
         log.debug("Inserting password")
@@ -178,7 +186,7 @@ class ScandResolver(ResolverBase):
     def _save(self, *args, **kwargs):
         with customopen(*args, **kwargs) as source_io:
             with open(self.path, "wb") as enc_dest_io:
-                #fill buffer with json data
+                # fill buffer with json data
                 if kwargs['io'] is 'buffer':
                     json_bytes = json.dumps(self._data).encode('utf-8')
                     source_io.write(json_bytes)
@@ -189,39 +197,32 @@ class ScandResolver(ResolverBase):
                                      password=self.password.encode('utf-8'))
 
     def _load(self, *args, **kwargs):
-        with open(self.path, "rb") as enc_source_io:
-            with customopen(*args, **kwargs) as destination_io:
-                try:
-                    file_cryptor.decrypt(in_file=enc_source_io,
-                                         out_file=destination_io,
-                                         password=self.password.encode('utf-8'))
+        try:
+            with open(self.path, "rb") as enc_source_io:
+                with customopen(*args, **kwargs) as destination_io:
+                    try:
+                        file_cryptor.decrypt(in_file=enc_source_io,
+                                             out_file=destination_io,
+                                             password=self.password.encode('utf-8'))
 
-                    destination_io.seek(0)
-                    decoded = destination_io.read().decode('utf-8')
-                except file_cryptor.EmptyIOError:
-                    return
-                except UnicodeDecodeError:
-                    raise DecodeError()
+                        destination_io.seek(0)
+                        decoded = destination_io.read().decode('utf-8')
+                    except file_cryptor.EmptyIOError:
+                        return
+                    except UnicodeDecodeError:
+                        raise DecodeError()
 
-                if not decoded:
-                    raise DecodeError()
-                self._data = json.loads(decoded)
+                    if not decoded:
+                        raise DecodeError()
+                    self._data = json.loads(decoded)
+        except FileNotFoundError:
+            raise RuntimeError("Suppose you've not synced to remote repo. Try using -r option")
 
-    def _pull(self):
+    def _commit(self):
         if not os.path.exists(ScandResolver.RepoPath + "/.git"):
             repo = Repo.clone_from(self._remote, self._encrypted_dir)
         else:
-            class MyProgressPrinter(git.RemoteProgress):
-                def update(self, op_code, cur_count, max_count=None, message=''):
-                    log.debug("%s percents" % (cur_count / (max_count or 100.0) * 100))
-
             repo = Repo(self._encrypted_dir)
-            origin = repo.remotes.origin
-            for info in origin.pull(progress=MyProgressPrinter()):
-                log.debug("Pulled %s to %s" % (info.ref, info.commit.message))
-
-    def _push(self):
-        repo = Repo(ScandResolver.RepoPath)
         index = repo.index
         entries = [path for path, stage in index.entries if not stage]
         index.add(entries)
@@ -229,9 +230,23 @@ class ScandResolver(ResolverBase):
             import datetime
             import socket
             index.commit('%s - from %s' % (datetime.datetime.now(), socket.gethostname()))
-            origin = repo.remotes.origin
-            for info in origin.push():
-                log.debug("Pushed %s" % info.local_ref.commit.message)
+
+        return repo
+
+    def _pull(self):
+        repo = self._commit()
+
+        class MyProgressPrinter(git.RemoteProgress):
+            def update(self, op_code, cur_count, max_count=None, message=''):
+                log.debug("%s percents" % (cur_count / (max_count or 100.0) * 100))
+
+        for info in repo.remotes.origin.pull(progress=MyProgressPrinter()):
+            log.debug("Pulled %s to %s" % (info.ref, info.commit.message))
+
+    def _push(self):
+        repo = self._commit()
+        for info in repo.remotes.origin.push():
+            log.debug("Pushed %s" % info.local_ref.commit.message)
 
     def _save_data(self):
         self._save(io='buffer')

@@ -11,37 +11,44 @@ import pyperclip as clip
 from cozy_password.QSingleApplication import QtSingleGuiApplication
 import socket, os
 
+
 # This is the type that will be registered with QML.  It must be a
 # sub-class of QObject.
 class Resolver(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.__resolver = ScandResolver()
+        self._resolver = ScandResolver()
 
     @pyqtProperty('QStringList')
     def keys(self):
         log.debug('Requesting keys')
         # [log.debug(k) for k in self.__resolver.data()['Pairs']]
-        return [k for k in self.__resolver.data()['Pairs']]
+        return [k for k in self._resolver.pairs]
 
     # Key 2 password
     @pyqtSlot(str)
     def k2p_clipboard(self, arg):
         if not arg:
             return
-        password = self.__resolver.password_for_name(arg)
+        password = self._resolver.password_for_name(arg)
         clip.copy(password)
 
     @pyqtSlot(str, str)
     def new_entry(self, key, password):
-        pass
+        self._resolver.add_password(key, password)
 
     @pyqtSlot(str, result=bool)
     def check_password(self, key):
-        return self.__resolver.check_password(key)
+        return self._resolver.check_password(key)
+
+    @pyqtSlot(str, result=bool)
+    def contains(self, key):
+        return key in self._resolver.pairs or False
 
 
 from contextlib import contextmanager
+
+
 @contextmanager
 def open_single_application(*args):
     qtapp = QtSingleGuiApplication(*args)
@@ -60,6 +67,6 @@ with open_single_application(appGuid, sys.argv) as app:
     engine.load(QUrl('main.qml'))
     mwn = engine.rootObjects()[0]
     app.setActivationWindow(mwn)
-    mwn.hide()
+    mwn.show()
 
     sys.exit(app.exec_())

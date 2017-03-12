@@ -8,8 +8,9 @@ import PyResolver 1.0
 ApplicationWindow {
     id: mwn
 
-    property real dpi: Screen.pixelDensity * 25.4
-    property real dp: {return dpi < 120 ? 1 : dpi /160}
+    readonly property real dpi: Screen.pixelDensity * 25.4
+    readonly property bool high_resolution_desktop: Screen.pixelDensity > 3.77 ? Screen.pixelDensity < 4.92 ? true : false : false
+    property real dp: high_resolution_desktop ? 1.25 : 1
     property int spacing: 8 * dp
     property int row_height: 40 * dp
 
@@ -45,14 +46,252 @@ ApplicationWindow {
     readonly property string common: 'common'
     readonly property string password: 'password'
     readonly property string login: 'login'
-    property string currentState: {
-        if (!login_succeeded) {
-            return login
-        }
+    readonly property string cmd: "cmd"
+    readonly property string add: "add"
+    readonly property string set: "set"
+    readonly property string del: "del"
 
-        return common
+    property string currentState: modes.initial
+
+    function switch_state(newstate) {
+        actions_stack.push(currentState)
+        currentState = newstate
     }
-    //States end
+
+    function return_state(newstate) {
+        currentState = newstate
+    }
+
+    property var commands : ([
+        add, set, del
+    ])
+    property var actions_stack : ([])
+    property var modes:
+        ({
+             initial : login,
+             login :
+                 ({
+                      model: [],
+                      container :
+                          ({
+                               width: 70 * dp,
+                               text: "login",
+                           }),
+                      customButton :
+                          ({
+                               visible : true
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode: _customButton.pressed ? TextInput.Normal : TextInput.Password,
+                      placeholder: "Password sir",
+                      onTextChanged : function(text) {
+                      },
+                      onReturn : function() {
+                          if (_resolver.check_password(_textField.text)) {
+                              _enterField.style = _normalTFStyle
+                              switch_state(common)
+                              _enterField.text = ''
+                          } else {
+                              _textField.text = ''
+                              _enterField.style = _errorTFStyle
+                              var oldtext = _enterField.placeholderText
+                              _enterField.placeholderText = "Incorrect, sir"
+                              delay(1000 ,function() {
+                                  _enterField.placeholderText = oldtext
+                                  _enterField.style = _normalTFStyle
+                              })
+                          }
+                      },
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          Qt.quit()
+                      }
+                  }),
+             common :
+                 ({
+                      model : [],
+                      container :
+                          ({
+                               width: 0,
+                               text: ""
+                           }),
+                      customButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode: TextInput.Normal,
+                      placeholder: "",
+                      onTextChanged : function (text) {
+                          if (text[0] === ':') {
+                              listModel = []
+                              switch_state(cmd)
+                              _enterField.text = _enterField.text.substring(1)
+                          } else {
+                              var keys = _resolver.keys
+                              listModel = keys.filter(function(obj) {
+                                  var rx = new RegExp(text, 'i')
+                                  if (rx.test(obj)) {
+                                      return true
+                                  }
+                                  return false
+                              })
+                          }
+                      },
+                      onReturn : function() {},
+                      onListIndexChanged : function(index) {
+                          console.log("On commmon list index: " + index)
+                      },
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          var staterestore = actions_stack.pop()
+                          return_state(staterestore)
+                          //FIXME Not updated automatically
+                          listModel = []
+                      }
+                  }),
+             password :
+                 ({
+                      container :
+                          ({
+                               width: 115 * dp,
+                               text: "password"
+                           }),
+                      customButton :
+                          ({
+                               visible : true
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode: (_customButton.pressed ? TextInput.Normal : TextInput.Password),
+                      placeholder: '',
+                      onTextChanged : function (text) {},
+                      onReturn : function() {},
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          return_state(actions_stack.pop())
+                      }
+                  }),
+             cmd :
+                 ({
+                      container :
+                          ({
+                               width: 60 * dp,
+                               text: cmd
+                           }),
+                      customButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode : TextInput.Normal,
+                      placeholder : '',
+                      onTextChanged : function (text) {
+                          var rx = new RegExp("(" + commands.join('|') + ")\\s(.*)", 'i')
+                          var rxmatch = text.match(rx)
+                          if (rxmatch) {
+                              switch_state(rxmatch[1])
+                              _enterField.text = rxmatch[2]
+                          }
+                      },
+                      onReturn : function() {
+                          this.onTextChanged(_enterField.text + ' ')
+                      },
+                      onListIndexChanged : function(index) {
+                      },
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          return_state(actions_stack.pop())
+                      }
+                  }),
+             add :
+                 ({
+                      container :
+                          ({
+                               width: 60 * dp,
+                               text: "add"
+                           }),
+                      customButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode : TextInput.Normal,
+                      placeholder : '',
+                      onTextChanged : function (text) {
+                          if (_resolver.contains(text)) {
+                              _enterField.style = _redTFStyle
+                          } else {
+                              _enterField.style = _normalTFStyle
+                          }
+                      },
+                      onReturn : function() {
+                          if (_enterField.style === _normalTFStyle) {
+                              switch_state(password)
+                              _enterField.text = ''
+                          }
+                      },
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          return_state(actions_stack.pop())
+                          //FIXME Automaticly edjust
+                          _enterField.style = _normalTFStyle
+                      }
+                  }),
+             set :
+                 ({
+                      container :
+                          ({
+                               width: 60 * dp,
+                               text: "set"
+                           }),
+                      customButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode : TextInput.Normal,
+                      placeholder : '',
+                      onTextChanged : function (text) {},
+                      onReturn : function() {
+                          switch_state(password)
+                          _enterField.text = ''
+                      },
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          return_state(actions_stack.pop())
+                      }
+                  }),
+             del :
+                 ({
+                      container :
+                          ({
+                               width: 60 * dp,
+                               text: "del"
+                           }),
+                      customButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode : TextInput.Normal,
+                      placeholder : '',
+                      onTextChanged : function (text) {},
+                      onReturn : function() {
+                          switch_state(password)
+                          _enterField.text = ''
+                      },
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          return_state(actions_stack.pop())
+                      }
+                  })
+         })
+
     property string storedText: ''
 
     function rand_color() {
@@ -76,49 +315,47 @@ ApplicationWindow {
         return colors[keys[hashindex]]
     }
 
+    function _timer() {
+        return Qt.createQmlObject("import QtQuick 2.0; Timer {}", mwn);
+    }
 
-    Behavior on height {
+    function delay(delayTime, cb) {
+        _timer.interval = delayTime;
+        _timer.repeat = false;
+        _timer.triggered.connect(cb);
+        _timer.start();
+    }
+
+    /*Behavior on height {
         NumberAnimation {
             duration: 150
             easing.type: Easing.InOutQuad
         }
-    }
+    }*/
 
     Resolver {
-        id: __resolver
+        id: _resolver
     }
 
-    property var pythonModel: login_succeeded ? __resolver.keys : []
-    property ListModel emptyModel: ListModel {}
-    property ListModel fullModel:  ListModel {
-        ListElement {name: "text1"}
-        ListElement {name: "text2"}
-        ListElement {name: "text3"}
-        ListElement {name: "text4"}
-    }
-    property var alterModel: [
-        'Key1',
-        'Key2',
-        'Key3'
-    ]
+    property var listModel: modes[currentState].model
 
     x: (Screen.width - width) / 2
     y: (Screen.height - 480 * mwn.dp) / 2
 
     visible: true
     width: 640 * mwn.dp
-    height: __textField.height
+    height: _textField.height
 
     title: qsTr("Hello World")
     flags: Qt.FramelessWindowHint | Qt.WA_TranslucentBackground | Qt.WindowStaysOnTopHint//| Qt.BypassWindowManagerHint
 
-    /*Rectangle {
-        anchors.fill: parent
-        color: "white"
-    }*/
+    Timer {
+        id: _timer
+    }
 
     Rectangle {
-        id: __textField
+        id: _textField
+
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
@@ -127,18 +364,23 @@ ApplicationWindow {
         border.color: mwn.border_color
         border.width: mwn.border_width
 
-        property alias text: __enterField.text
+        property alias customLeftSide: _customContainer.data
+
+        property alias text: _enterField.text
         property var newEntry: function() {
-            __customContainerContent.text = '<strong>NEW PASSWORD</strong>'
-            mwn.storedText = __enterField.text
+            _customContainerContent.text = '<strong>NEW PASSWORD</strong>'
+            mwn.storedText = _enterField.text
             mwn.currentState = mwn.password
-            __enterField.text = ''
+            _enterField.text = ''
         }
 
         Rectangle {
-            id: __customContainer
+            id: _customContainer
 
-            property int explicitwidth: currentState == mwn.password ? 130 * mwn.dp : 0
+            //roperty int explicitwidth: currentState == mwn.password ? 130 * mwn.dp : 0
+            property int explicitwidth: mwn.modes[currentState].container.width
+            property alias text: _customContainerContent.text
+            //width: children.width
 
             x: mwn.border_width
             y: mwn.border_width
@@ -153,11 +395,12 @@ ApplicationWindow {
             Rectangle {width: mwn.border_width; height: parent.height; color: mwn.border_color; anchors.right: parent.right}
 
             Text {
-                id: __customContainerContent
+                id: _customContainerContent
 
-                text: ''
+                text: mwn.modes[currentState].container.text
                 color: "white"
-                font.pixelSize: 14 * mwn.dp
+                font.pixelSize: 22 * mwn.dp
+                font.bold: false
                 anchors.fill: parent
                 anchors.leftMargin: mwn.spacing
                 renderType: Text.NativeRendering
@@ -166,127 +409,108 @@ ApplicationWindow {
         }
 
         TextField {
-            id: __enterField
+            id: _enterField
 
-            x: __customContainer.width + mwn.border_width
+            x: _customContainer.width + mwn.border_width
             y: mwn.border_width
-            width: parent.width - __customContainer.width - 2*mwn.border_width
+            width: parent.width - _customContainer.width - 2*mwn.border_width
             height: parent.height - 3*mwn.border_width
             font.pixelSize: 24 * mwn.dp
-            echoMode: {
-                login_succeeded ? TextInput.Normal : TextInput.Password
-                switch (mwn.currentState) {
-                case mwn.login:
-                case mwn.password:
-                    return TextInput.Password
-                default:
-                    return TextInput.Normal
-                }
-            }
-            onTextChanged: {
-                if (!login_succeeded || mwn.currentState !== mwn.common)
-                    return
+            echoMode: modes[currentState].echomode
 
-                var keys = __resolver.keys
-                pythonModel = keys.filter(function(obj) {
-                    var rx = new RegExp(text, 'i')
-                    if (rx.test(obj)) {
-                        return true
-                    }
-                    return false
-                })
+            onTextChanged: {
+                modes[currentState].onTextChanged(text)
             }
 
             focus: true
-            placeholderText: login_succeeded ? '' : 'Password please'
+            placeholderText: modes[currentState].placeholder
 
             Keys.onPressed: {
-                console.log("Event key: " + event.key)
+                //console.log("Event key: " + event.key)
                 switch (event.key) {
                 case Qt.Key_Up:
-                    __view.move(__view.up)
+                    _view.move(_view.up)
                     event.accepted = true
                     break
                 case Qt.Key_Down:
-                    __view.move(__view.down)
+                    _view.move(_view.down)
                     event.accepted = true
                     break
                 }
             }
             Keys.onReturnPressed: {
-                console.log("Return operations")
-                switch (mwn.currentState) {
-                case mwn.login:
-                    mwn.currentState = mwn.common
-                    break
-                case mwn.password:
-                    mwn.currentState = mwn.common
-                    break;
-                case mwn.common:
-                    if (pythonModel.length === 0) {
-                        __textField.newEntry()
-                    } else {
-                        __resolver.k2p_clipboard(pythonModel[__view.currentIndex])
-                        mwn.hide()
-                        Qt.quit()
-                    }
-                    break;
+                if (_view.count) {
+                    mwn.modes[currentState].onListIndexAccepted(_view.currentIndex)
                 }
+                mwn.modes[currentState].onReturn()
                 event.accepted = true
             }
             Keys.onEscapePressed: {
-                console.log("Escape operations")
-                switch (mwn.currentState) {
-                case mwn.login:
-                case mwn.common:
-                    Qt.quit()
-                    break
-                case mwn.password:
-                    __textField.text = mwn.storedText
-                    mwn.currentState = mwn.common
-                    break
-                }
+                modes[currentState].onEscape()
             }
 
-            style: TextFieldStyle {
-                background: Rectangle {
-                    border.color: mwn.border_color
-                    border.width: 0//mwn.border_width
-                }
-                placeholderTextColor: colors.blue
-            }
+            style:  modes[currentState].tfstyle
 
-            Item {
-                height: parent.height * 0.7
+            Button {
+                id: _customButton
+
+                height: parent.height / 1.5
                 width: height
-                visible: {console.log("PML: " + pythonModel.length); return pythonModel.length === 0 && login_succeeded}
-                anchors.right: parent.right
+                visible: modes[currentState].customButton.visible
+                anchors.rightMargin: height / 2
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.rightMargin: width * 0.15
-
-                Image {
-                    anchors.fill: parent
-                    source: 'new_entry.svg'
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked:  __textField.newEntry()
+                anchors.right: parent.right
+                style: ButtonStyle {
+                    background: Image {
+                        source: "eye.svg"
+                    }
                 }
             }
         }
     }
 
-
+    Component {
+        id: _normalTFStyle
+        TextFieldStyle {
+            background: Rectangle {
+                border.color: mwn.border_color
+                border.width: 0//mwn.border_width
+            }
+            placeholderTextColor: colors.blue
+        }
+    }
+    Component {
+        id: _errorTFStyle
+        TextFieldStyle {
+            background: Rectangle {
+                border.color: colors.red
+                border.width: 0//mwn.border_width
+            }
+            placeholderTextColor: colors.red
+        }
+    }
+    Component {
+        id: _redTFStyle
+        TextFieldStyle {
+            background: Rectangle {
+                border.color: mwn.border_color
+                border.width: 0//mwn.border_width
+            }
+            textColor: colors.red
+        }
+    }
 
     ListView {
-        id: __view
+        id: _view
 
-        anchors.top: __textField.bottom
+        anchors.top: _textField.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        height: pythonModel.length * row_height
+        height: listModel.length * row_height
         clip: true
-        model: pythonModel
+        model: listModel
+
+        signal explicitIndexChanged(int index)
 
         readonly property int up : 0
         readonly property int down : 1
@@ -310,10 +534,11 @@ ApplicationWindow {
                 }
                 break
             }
+            modes[currentState].onListIndexChanged(currentIndex)
         }
 
         delegate: Item {
-            property string content: pythonModel[index]
+            property string content: listModel[index]
             property string highlightColor: custom_hash_index(content)
 
             //color: "white"
@@ -354,14 +579,8 @@ ApplicationWindow {
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
-                    __view.currentIndex = index
-                }
-            }
-
-            Behavior on height {
-                NumberAnimation {
-                    duration: 150
-                    easing.type: Easing.InOutQuad
+                    _view.currentIndex = index
+                    modes[currentState].onListIndexAccepted(index)
                 }
             }
         }
@@ -371,7 +590,7 @@ ApplicationWindow {
         }
         highlightMoveVelocity: 750
         onHeightChanged: {
-            mwn.height = height + __textField.height
+            mwn.height = height + _textField.height
         }
     }
 
