@@ -24,6 +24,7 @@ public:
     Q_SLOT bool contains(const QString &text) {return variants_.keys().contains(text);}
     Q_SLOT void k2p_clipboard() {qDebug() << "TEST!!!";}
     Q_SLOT bool check_password(const QString &param) {return !param.compare("rbhpf");}
+    Q_SLOT void sync() {;}
 
 private:
     QString name_;

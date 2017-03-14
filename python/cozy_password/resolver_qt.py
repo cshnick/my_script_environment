@@ -3,13 +3,13 @@
 import sys
 
 from PyQt5.QtCore import pyqtProperty, pyqtSlot, QObject, QUrl
-from PyQt5.QtQml import qmlRegisterType, qmlRegisterUncreatableType, QQmlComponent, QQmlApplicationEngine
-from PyQt5.QtGui import QGuiApplication
-from cozy_password.resolver import ScandResolver
+from PyQt5.QtQml import qmlRegisterType, QQmlApplicationEngine
+from cozy_password.resolver import ScandResolver, profile
 import logging as log
 import pyperclip as clip
 from cozy_password.QSingleApplication import QtSingleGuiApplication
 from contextlib import contextmanager
+
 
 class Resolver(QObject):
     def __init__(self, parent=None):
@@ -41,6 +41,15 @@ class Resolver(QObject):
     @pyqtSlot(str, result=bool)
     def contains(self, key):
         return key in self._resolver.pairs or False
+
+    @pyqtSlot()
+    def sync(self):
+        self._resolver.remote_update = True
+        import time
+        time_ = time.time()
+        self._resolver.update()
+        diff = time.time() - time_
+        log.debug("update last: %s" % diff)
 
 
 @contextmanager

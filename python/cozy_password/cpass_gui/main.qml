@@ -91,6 +91,8 @@ ApplicationWindow {
                               _enterField.style = _normalTFStyle
                               switch_state(common)
                               _enterField.text = ''
+                              _resolver.sync()
+                              console.log("After sync")
                           } else {
                               _textField.text = ''
                               _enterField.style = _errorTFStyle
