@@ -51,7 +51,7 @@ def pull_if_required(method):
     def deco(self, *args, **kwargs):
         if self._remote_update:
             self._pull()
-        method(self, *args, **kwargs)
+        return method(self, *args, **kwargs)
 
     return deco
 
@@ -143,10 +143,9 @@ class ScandResolver(ResolverBase):
     @pull_if_required
     def password_for_name(self, name, default=None):
         log.debug("password for name %s from %s" % (name, self.path))
-        pairs = self._data[self.Pairs_tag]
         password = default
-        if name in pairs:
-            password = pairs[name]
+        if name in self.pairs:
+            password = self.pairs[name]
 
         return password
 

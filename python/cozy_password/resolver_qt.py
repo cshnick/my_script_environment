@@ -50,6 +50,7 @@ class Resolver(QObject):
         self._resolver.update()
         diff = time.time() - time_
         log.debug("update last: %s" % diff)
+        self._resolver.remote_update = False
 
 
 @contextmanager
@@ -71,5 +72,4 @@ with open_single_application(appGuid, sys.argv) as app:
     mwn = engine.rootObjects()[0]
     app.setActivationWindow(mwn)
     mwn.show()
-
     sys.exit(app.exec_())

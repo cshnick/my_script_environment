@@ -92,15 +92,16 @@ ApplicationWindow {
                               switch_state(common)
                               _enterField.text = ''
                               _resolver.sync()
-                              console.log("After sync")
                           } else {
                               _textField.text = ''
                               _enterField.style = _errorTFStyle
                               var oldtext = _enterField.placeholderText
                               _enterField.placeholderText = "Incorrect, sir"
                               delay(1000 ,function() {
-                                  _enterField.placeholderText = oldtext
-                                  _enterField.style = _normalTFStyle
+                                  if (currentState == login) {
+                                      _enterField.placeholderText = oldtext
+                                      _enterField.style = _normalTFStyle
+                                  }
                               })
                           }
                       },
@@ -141,11 +142,14 @@ ApplicationWindow {
                               })
                           }
                       },
-                      onReturn : function() {},
+                      onReturn : function() {
+                      },
                       onListIndexChanged : function(index) {
                           console.log("On commmon list index: " + index)
                       },
-                      onListIndexAccepted : function(index) {},
+                      onListIndexAccepted : function(index) {
+                          _resolver.k2p_clipboard(listModel[index])
+                      },
                       onEscape : function() {
                           var staterestore = actions_stack.pop()
                           return_state(staterestore)
