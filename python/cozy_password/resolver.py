@@ -59,9 +59,10 @@ def pull_if_required(method):
 def push_if_required(method):
     def deco(self, *args, **kwargs):
         log.critical("push")
-        method(self, *args, **kwargs)
+        result = method(self, *args, **kwargs)
         if self._remote_update:
             self._push()
+        return result
 
     return deco
 
@@ -69,8 +70,9 @@ def push_if_required(method):
 def commit(method):
     def deco(self, *args, **kwargs):
         log.critical("Commit")
-        method(self, *args, **kwargs)
+        result = method(self, *args, **kwargs)
         self._commit()
+        return result
 
     return deco
 
@@ -161,8 +163,8 @@ class ScandResolver(ResolverBase):
 
         return True
 
-    @commit
     @push_if_required
+    @commit
     def add_password(self, key, password):
         log.debug("Inserting password")
         if password is None:
