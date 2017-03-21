@@ -225,11 +225,12 @@ class ScandResolver(ResolverBase):
         else:
             repo = Repo(self._encrypted_dir)
         index = repo.index
-        entries = [path for path, stage in index.entries if not stage]
-        index.add(entries)
-        if entries:
+        diff = index.diff(None)
+        modified = [di.a_path or di.b_path for di in index.diff(None) if di.change_type == 'M']
+        if modified:
             import datetime
             import socket
+            index.add(modified)
             index.commit('%s - from %s' % (datetime.datetime.now(), socket.gethostname()))
 
         return repo

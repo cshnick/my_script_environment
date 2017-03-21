@@ -53,18 +53,36 @@ ApplicationWindow {
 
     property string currentState: modes.initial
 
-    function switch_state(newstate) {
-        actions_stack.push(currentState)
+    function switch_state(newstate, text, placeholder, custom) {
+        var o = {'state' : currentState}
+        if (placeholder !== undefined) o.placeholder = placeholder
+        if (text !== undefined) o.text = text
+        if (custom !== undefined) o.custom = text
+        actions_stack.push(o)
         currentState = newstate
     }
 
-    function return_state(newstate) {
-        currentState = newstate
+    function return_state() {
+        var o = actions_stack.pop()
+        currentState = o.state
+        if (o.placeholder !== undefined) _enterField.placeholderText = o.placeholder
+        if (o.text !== undefined) _enterField.text = o.text
+    }
+
+    function glimpse_stack() {
+        return actions_stack[actions_stack.length - 1]
+    }
+
+    function password_accepted() {
+        var o = actions_stack.pop()
+        currentState = o.state
+        _enterField.text = ''
+        if (o.placeholder !== undefined) _enterField.placeholderText = o.placeholder
     }
 
     property var commands : ([
-        add, set, del
-    ])
+                                 add, set, del
+                             ])
     property var actions_stack : ([])
     property var modes:
         ({
@@ -83,14 +101,15 @@ ApplicationWindow {
                            }),
                       tfstyle: _normalTFStyle,
                       echomode: _customButton.pressed ? TextInput.Normal : TextInput.Password,
-                      placeholder: "Password sir",
-                      onTextChanged : function(text) {
-                      },
+                                                        placeholder: "Password sir",
+                                                        onTextChanged : function(text) {
+                                                        },
                       onReturn : function() {
                           if (_resolver.check_password(_textField.text)) {
                               _enterField.style = _normalTFStyle
-                              switch_state(common)
+                              switch_state(common, '', this.placeholder)
                               _enterField.text = ''
+                              _enterField.placeholderText = ''
                               _resolver.sync()
                           } else {
                               _textField.text = ''
@@ -151,8 +170,7 @@ ApplicationWindow {
                           _resolver.k2p_clipboard(listModel[index])
                       },
                       onEscape : function() {
-                          var staterestore = actions_stack.pop()
-                          return_state(staterestore)
+                          return_state()
                           //FIXME Not updated automatically
                           listModel = []
                       }
@@ -172,11 +190,18 @@ ApplicationWindow {
                       echomode: (_customButton.pressed ? TextInput.Normal : TextInput.Password),
                       placeholder: '',
                       onTextChanged : function (text) {},
-                      onReturn : function() {},
+                      onReturn : function() {
+                          var o = glimpse_stack()
+                          if (modes[o.state].onPassword !== undefined) {
+                              password_accepted()
+                          } else {
+
+                          }
+                      },
                       onListIndexChanged : function(index) {},
                       onListIndexAccepted : function(index) {},
                       onEscape : function() {
-                          return_state(actions_stack.pop())
+                          return_state()
                       }
                   }),
              cmd :
@@ -197,8 +222,12 @@ ApplicationWindow {
                           var rx = new RegExp("(" + commands.join('|') + ")\\s(.*)", 'i')
                           var rxmatch = text.match(rx)
                           if (rxmatch) {
-                              switch_state(rxmatch[1])
+                              var comm = rxmatch[1]
+                              switch_state(comm)
                               _enterField.text = rxmatch[2]
+                              if (modes[comm].hint !== undefined) {
+                                  _enterField.placeholderText = modes[comm].hint
+                              }
                           }
                       },
                       onReturn : function() {
@@ -208,7 +237,7 @@ ApplicationWindow {
                       },
                       onListIndexAccepted : function(index) {},
                       onEscape : function() {
-                          return_state(actions_stack.pop())
+                          return_state()
                       }
                   }),
              add :
@@ -222,6 +251,7 @@ ApplicationWindow {
                           ({
                                visible : false
                            }),
+                      hint: 'Enter new key',
                       tfstyle: _normalTFStyle,
                       echomode : TextInput.Normal,
                       placeholder : '',
@@ -234,14 +264,20 @@ ApplicationWindow {
                       },
                       onReturn : function() {
                           if (_enterField.style === _normalTFStyle) {
-                              switch_state(password)
+                              switch_state(password,
+                                           _enterField.text,
+                                           this.hint)
+                              _enterField.placeholderText = 'New for "' + _enterField.text + '"'
                               _enterField.text = ''
                           }
                       },
                       onListIndexChanged : function(index) {},
                       onListIndexAccepted : function(index) {},
+                      onPassword: function(text) {
+                            return true;
+                      },
                       onEscape : function() {
-                          return_state(actions_stack.pop())
+                          return_state()
                           //FIXME Automaticly edjust
                           _enterField.style = _normalTFStyle
                       }
@@ -268,7 +304,7 @@ ApplicationWindow {
                       onListIndexChanged : function(index) {},
                       onListIndexAccepted : function(index) {},
                       onEscape : function() {
-                          return_state(actions_stack.pop())
+                          return_state(actions_stack.pop().state)
                       }
                   }),
              del :
@@ -293,7 +329,7 @@ ApplicationWindow {
                       onListIndexChanged : function(index) {},
                       onListIndexAccepted : function(index) {},
                       onEscape : function() {
-                          return_state(actions_stack.pop())
+                          return_state()
                       }
                   })
          })
