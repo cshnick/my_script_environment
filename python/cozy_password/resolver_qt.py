@@ -2,13 +2,25 @@
 
 import sys
 
-from PyQt5.QtCore import pyqtProperty, pyqtSlot, QObject, QUrl
+from PyQt5.QtCore import pyqtProperty, pyqtSignal, pyqtSlot, QObject, QUrl
 from PyQt5.QtQml import qmlRegisterType, QQmlApplicationEngine
 from cozy_password.resolver import ScandResolver, profile
 import logging as log
 import pyperclip as clip
 from cozy_password.QSingleApplication import QtSingleGuiApplication
 from contextlib import contextmanager
+from threading import Thread
+from functools import wraps
+
+
+def run_async(func):
+    @wraps(func)
+    def async_func(*args, **kwargs):
+        func_hl = Thread(target=func, args=args, kwargs=kwargs)
+        func_hl.start()
+        return func_hl
+
+    return async_func
 
 
 class Resolver(QObject):
@@ -16,7 +28,25 @@ class Resolver(QObject):
         super().__init__(parent)
         self._resolver = ScandResolver()
 
-    @pyqtProperty('QStringList')
+    @run_async
+    def _update_async(self):
+        self._resolver.remote_update = True
+        self._resolver.update()
+        self.keys_changed.emit(list(self._resolver.pairs))
+        self._resolver.remote_update = False
+
+    @contextmanager
+    def remote_update(self):
+        store = self._resolver.remote_update
+        self._resolver.remote_update = True
+        try:
+            yield
+        finally:
+            self._resolver.remote_update = store
+
+    keys_changed = pyqtSignal('QStringList', name='keysChanged', arguments=['newkeys'])
+
+    @pyqtProperty('QStringList', notify=keys_changed)
     def keys(self):
         log.log(log.NOTSET, 'Requesting keys')
         return list(self._resolver.pairs)
@@ -30,9 +60,12 @@ class Resolver(QObject):
         if password:
             clip.copy(password)
 
-    @pyqtSlot(str, str)
+    @pyqtSlot(str, str, result=bool)
     def new_entry(self, key, password):
-        self._resolver.add_password(key, password)
+        log.info('Inserting: (%s, %s)' % (key, password))
+        with self.remote_update():
+            self._resolver.add_password(key, password)
+        return True
 
     @pyqtSlot(str, result=bool)
     def check_password(self, key):
@@ -44,13 +77,18 @@ class Resolver(QObject):
 
     @pyqtSlot()
     def sync(self):
-        self._resolver.remote_update = True
-        import time
-        time_ = time.time()
-        self._resolver.update()
-        diff = time.time() - time_
-        log.debug("update last: %s" % diff)
-        self._resolver.remote_update = False
+        self._update_async()
+
+    password_changed = pyqtSignal(str)
+
+    @pyqtProperty(str)
+    def password(self):
+        return self._resolver.password
+
+    @password.setter
+    def password(self, value):
+        self._resolver.password = value
+        self.password_changed.emit(value)
 
 
 @contextmanager

@@ -73,11 +73,15 @@ ApplicationWindow {
         return actions_stack[actions_stack.length - 1]
     }
 
-    function password_accepted() {
-        var o = actions_stack.pop()
+    function to_common() {
+        var o;
+        while (true) {
+            if ((o = actions_stack.pop()).state === common) break
+        }
         currentState = o.state
         _enterField.text = ''
-        if (o.placeholder !== undefined) _enterField.placeholderText = o.placeholder
+        _enterField.placeholderText = ''
+        modes[common].onTextChanged('')
     }
 
     property var commands : ([
@@ -100,12 +104,13 @@ ApplicationWindow {
                                visible : true
                            }),
                       tfstyle: _normalTFStyle,
-                      echomode: _customButton.pressed ? TextInput.Normal : TextInput.Password,
-                                                        placeholder: "Password sir",
-                                                        onTextChanged : function(text) {
-                                                        },
+                      echomode: (_customButton.pressed ? TextInput.Normal : TextInput.Password),
+                      placeholder: "Password sir",
+                      onTextChanged : function(text) {
+                      },
                       onReturn : function() {
                           if (_resolver.check_password(_textField.text)) {
+                              _resolver.password = _textField.text
                               _enterField.style = _normalTFStyle
                               switch_state(common, '', this.placeholder)
                               _enterField.text = ''
@@ -169,6 +174,9 @@ ApplicationWindow {
                       onListIndexAccepted : function(index) {
                           _resolver.k2p_clipboard(listModel[index])
                       },
+                      onKeysChanged: function(keys) {
+                          this.onTextChanged(_enterField.text)
+                      },
                       onEscape : function() {
                           return_state()
                           //FIXME Not updated automatically
@@ -191,12 +199,26 @@ ApplicationWindow {
                       placeholder: '',
                       onTextChanged : function (text) {},
                       onReturn : function() {
+                          var passwd = _enterField.text
+                          var oldtext = _enterField.placeholderText
                           var o = glimpse_stack()
-                          if (modes[o.state].onPassword !== undefined) {
-                              password_accepted()
-                          } else {
+                          //Clean password dots
+                          _enterField.text = ''
+                          if (modes[o.state].onPassword({name: o.text, password: passwd})) {
+                              _enterField.style = _successTFStyle
+                              _enterField.placeholderText = 'Succeeded'
 
+                          } else {
+                              _enterField.style = _errorTFStyle
+                              _enterField.placeholderText = 'Error'
                           }
+                          delay(1000 ,function() {
+                              if (currentState == password) {
+                                  _enterField.placeholderText = oldtext
+                                  _enterField.style = _normalTFStyle
+                                  to_common()
+                              }
+                          })
                       },
                       onListIndexChanged : function(index) {},
                       onListIndexAccepted : function(index) {},
@@ -251,7 +273,7 @@ ApplicationWindow {
                           ({
                                visible : false
                            }),
-                      hint: 'Enter new key',
+                      hint: 'new entry',
                       tfstyle: _normalTFStyle,
                       echomode : TextInput.Normal,
                       placeholder : '',
@@ -267,14 +289,17 @@ ApplicationWindow {
                               switch_state(password,
                                            _enterField.text,
                                            this.hint)
-                              _enterField.placeholderText = 'New for "' + _enterField.text + '"'
+                              _enterField.placeholderText = 'for "' + _enterField.text + '"'
                               _enterField.text = ''
                           }
                       },
                       onListIndexChanged : function(index) {},
                       onListIndexAccepted : function(index) {},
-                      onPassword: function(text) {
-                            return true;
+                      onPassword: function(o) {
+                          if (o.name === undefined || o.password === undefined) {
+                              return false
+                          }
+                          return _resolver.new_entry(o.name, o.password)
                       },
                       onEscape : function() {
                           return_state()
@@ -368,6 +393,7 @@ ApplicationWindow {
         _timer.start();
     }
 
+
     /*Behavior on height {
         NumberAnimation {
             duration: 150
@@ -377,6 +403,11 @@ ApplicationWindow {
 
     Resolver {
         id: _resolver
+        onKeysChanged: {
+            if (modes[currentState].onKeysChanged !== undefined) {
+                modes[currentState].onKeysChanged(newkeys)
+            }
+        }
     }
 
     property var listModel: modes[currentState].model
@@ -532,6 +563,16 @@ ApplicationWindow {
         }
     }
     Component {
+        id: _successTFStyle
+        TextFieldStyle {
+            background: Rectangle {
+                border.color: mwn.border_color
+                border.width: 0//mwn.border_width
+            }
+            placeholderTextColor: colors.green
+        }
+    }
+    Component {
         id: _redTFStyle
         TextFieldStyle {
             background: Rectangle {
@@ -541,6 +582,7 @@ ApplicationWindow {
             textColor: colors.red
         }
     }
+
 
     ListView {
         id: _view

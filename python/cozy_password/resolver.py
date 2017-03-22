@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 import os
+
+from Cython.Distutils.old_build_ext import old_build_ext
+
 import cozy_password.file_cryptor as file_cryptor
 from contextlib import contextmanager
 from cozy_password.password_generator import generate_pass
@@ -154,12 +157,14 @@ class ScandResolver(ResolverBase):
     @profile
     def check_password(self, chk):
         empty_dic = {ScandResolver.Pairs_tag: {}}
-        old_pass = self.password
+        old_pass, old_data = self.password, self._data
         self.password = chk
         try:
             self._load(empty_dic, io='buffer')
         except DecodeError:
             return False
+        finally:
+            self.password, self._data = old_pass, old_data
 
         return True
 
