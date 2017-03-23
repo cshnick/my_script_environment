@@ -13,6 +13,8 @@
 
 xhost +
 xinput set-prop 9 285 -0.5
+klipper
+yakuake
 #bluetooth-start
 #sleep 10 
 #reload-compositor &
