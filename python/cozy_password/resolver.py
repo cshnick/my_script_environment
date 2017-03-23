@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 
 import os
-
-from Cython.Distutils.old_build_ext import old_build_ext
-
 import cozy_password.file_cryptor as file_cryptor
 from contextlib import contextmanager
 from cozy_password.password_generator import generate_pass

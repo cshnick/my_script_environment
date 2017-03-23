@@ -1,10 +1,9 @@
 #!/usr/bin/python3
 
 import sys
-
 from PyQt5.QtCore import pyqtProperty, pyqtSignal, pyqtSlot, QObject, QUrl
 from PyQt5.QtQml import qmlRegisterType, QQmlApplicationEngine
-from cozy_password.resolver import ScandResolver, profile
+from cozy_password.resolver import ScandResolver
 import logging as log
 import pyperclip as clip
 from cozy_password.QSingleApplication import QtSingleGuiApplication
@@ -125,5 +124,5 @@ with open_single_application(appGuid, sys.argv) as app:
     engine.load(QUrl('cpass_gui/main.qml'))
     mwn = engine.rootObjects()[0]
     app.setActivationWindow(mwn)
-    mwn.show()
+    mwn.hide()
     sys.exit(app.exec_())
