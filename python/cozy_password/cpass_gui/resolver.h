@@ -29,6 +29,8 @@ public:
     Q_SLOT void k2p_clipboard(const QString &str) {qDebug() << "TEST!!! " << str;}
     Q_SLOT bool check_password(const QString &param) {return !param.compare("rbhpf");}
     Q_SLOT bool new_entry(const QString &/*key*/, const QString &/*password*/) {return true;}
+    Q_SLOT bool set(const QString &/*key*/, const QString &/*password*/) {return true;}
+    Q_SLOT bool del(const QString &/*key*/) {return true;}
     Q_SLOT void sync() {Q_EMIT(keysChanged(variants_.keys()));}
 
 private:

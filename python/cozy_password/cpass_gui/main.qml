@@ -46,6 +46,7 @@ ApplicationWindow {
     readonly property string common: 'common'
     readonly property string password: 'password'
     readonly property string login: 'login'
+    readonly property string pending: "pending"
     readonly property string cmd: "cmd"
     readonly property string add: "add"
     readonly property string set: "set"
@@ -99,12 +100,12 @@ ApplicationWindow {
                                width: 70 * dp,
                                text: "login",
                            }),
-                      customButton :
+                      passwordButton :
                           ({
                                visible : true
                            }),
                       tfstyle: _normalTFStyle,
-                      echomode: (_customButton.pressed ? TextInput.Normal : TextInput.Password),
+                      echomode: (_passwordButton.pressed ? TextInput.Normal : TextInput.Password),
                       placeholder: "Password sir",
                       onTextChanged : function(text) {
                       },
@@ -143,7 +144,7 @@ ApplicationWindow {
                                width: 0,
                                text: ""
                            }),
-                      customButton :
+                      passwordButton :
                           ({
                                visible : false
                            }),
@@ -190,12 +191,12 @@ ApplicationWindow {
                                width: 115 * dp,
                                text: "password"
                            }),
-                      customButton :
+                      passwordButton :
                           ({
                                visible : true
                            }),
                       tfstyle: _normalTFStyle,
-                      echomode: (_customButton.pressed ? TextInput.Normal : TextInput.Password),
+                      echomode: (_passwordButton.pressed ? TextInput.Normal : TextInput.Password),
                       placeholder: '',
                       onTextChanged : function (text) {},
                       onReturn : function() {
@@ -213,14 +214,38 @@ ApplicationWindow {
                               _enterField.placeholderText = 'Error'
                           }
                           delay(1000 ,function() {
-                              if (currentState == password) {
-                                  _enterField.placeholderText = oldtext
-                                  _enterField.style = _normalTFStyle
-                                  to_common()
-                              }
+                              _enterField.placeholderText = oldtext
+                              _enterField.style = _normalTFStyle
+                              to_common()
+
                           })
                       },
                       onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          return_state()
+                      }
+                  }),
+             pending :
+                 ({
+                      container :
+                          ({
+                               width: 75 * dp,
+                               text: pending
+                           }),
+                      passwordButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode : TextInput.Normal,
+                      placeholder : '',
+                      onTextChanged : {
+                      },
+                      onReturn : function() {
+                      },
+                      onListIndexChanged : function(index) {
+                      },
                       onListIndexAccepted : function(index) {},
                       onEscape : function() {
                           return_state()
@@ -233,7 +258,7 @@ ApplicationWindow {
                                width: 60 * dp,
                                text: cmd
                            }),
-                      customButton :
+                      passwordButton :
                           ({
                                visible : false
                            }),
@@ -269,7 +294,7 @@ ApplicationWindow {
                                width: 60 * dp,
                                text: "add"
                            }),
-                      customButton :
+                      passwordButton :
                           ({
                                visible : false
                            }),
@@ -311,23 +336,39 @@ ApplicationWindow {
                  ({
                       container :
                           ({
-                               width: 60 * dp,
+                               width: 52 * dp,
                                text: "set"
                            }),
-                      customButton :
+                      passwordButton :
                           ({
                                visible : false
                            }),
                       tfstyle: _normalTFStyle,
                       echomode : TextInput.Normal,
                       placeholder : '',
-                      onTextChanged : function (text) {},
+                      onTextChanged : function (text) {
+                          modes[common].onTextChanged(text)
+                      },
                       onReturn : function() {
-                          switch_state(password)
-                          _enterField.text = ''
                       },
                       onListIndexChanged : function(index) {},
-                      onListIndexAccepted : function(index) {},
+                      onListIndexAccepted : function(index) {
+                          if (listModel[index] === _enterField.text) {
+                              switch_state(password,
+                                           _enterField.text,
+                                           this.hint)
+                              _enterField.placeholderText = 'for "' + _enterField.text + '"'
+                              _enterField.text = ''
+                          } else {
+                              _enterField.text = listModel[index]
+                          }
+                      },
+                      onPassword: function(o) {
+                          if (o.name === undefined || o.password === undefined) {
+                              return false
+                          }
+                          return _resolver.set(o.name, o.password)
+                      },
                       onEscape : function() {
                           return_state(actions_stack.pop().state)
                       }
@@ -336,23 +377,47 @@ ApplicationWindow {
                  ({
                       container :
                           ({
-                               width: 60 * dp,
+                               width: 52 * dp,
                                text: "del"
                            }),
-                      customButton :
+                      passwordButton :
                           ({
                                visible : false
                            }),
                       tfstyle: _normalTFStyle,
                       echomode : TextInput.Normal,
                       placeholder : '',
-                      onTextChanged : function (text) {},
+                      onTextChanged : function (text) {
+                          modes[common].onTextChanged(text)
+                      },
                       onReturn : function() {
-                          switch_state(password)
-                          _enterField.text = ''
                       },
                       onListIndexChanged : function(index) {},
-                      onListIndexAccepted : function(index) {},
+                      onListIndexAccepted : function(index) {
+                          if (listModel[index] === _enterField.text) {
+                              var oldtext = _enterField.placeholderText
+                              if (this.onPassword({name: _enterField.text})) {
+                                  _enterField.style = _successTFStyle
+                                  _enterField.placeholderText = 'Succeeded'
+                              } else {
+                                  _enterField.style = _errorTFStyle
+                                  _enterField.placeholderText = 'Error'
+                              }
+                              delay(1000 ,function() {
+                                  _enterField.placeholderText = oldtext
+                                  _enterField.style = _normalTFStyle
+                                  to_common()
+                              })
+                          } else {
+                              _enterField.text = listModel[index]
+                          }
+                      },
+                      onPassword: function(o) {
+                          if (o.name === undefined) {
+                              return false
+                          }
+                          return _resolver.del(o.name)
+                      },
                       onEscape : function() {
                           return_state()
                       }
@@ -512,10 +577,11 @@ ApplicationWindow {
                 }
             }
             Keys.onReturnPressed: {
+                var storedState = currentState
+                mwn.modes[storedState].onReturn()
                 if (_view.count) {
-                    mwn.modes[currentState].onListIndexAccepted(_view.currentIndex)
+                    mwn.modes[storedState].onListIndexAccepted(_view.currentIndex)
                 }
-                mwn.modes[currentState].onReturn()
                 event.accepted = true
             }
             Keys.onEscapePressed: {
@@ -525,11 +591,11 @@ ApplicationWindow {
             style:  modes[currentState].tfstyle
 
             Button {
-                id: _customButton
+                id: _passwordButton
 
                 height: parent.height / 1.5
                 width: height
-                visible: modes[currentState].customButton.visible
+                visible: modes[currentState].passwordButton.visible
                 anchors.rightMargin: height / 2
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.right: parent.right

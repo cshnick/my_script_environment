@@ -2,6 +2,7 @@
 
 from sys import version_info
 
+from sys import exit
 from argparse import ArgumentParser
 from cozy_password.resolver import ScandResolver
 from os.path import basename
@@ -30,6 +31,15 @@ class Const(object):
         Key = "Add.Key"
         Password = "Add.Password"
 
+    class Set:
+        Name = 'set'
+        Key = 'Set.Key'
+        Password = 'Set.Password'
+
+    class Del:
+        Name = 'del'
+        Key = 'Del.Key'
+
     class Get:
         Name = "get"
         Key = "Get.Key"
@@ -45,6 +55,7 @@ class Const(object):
 class PasswordError(Exception):
     def __init__(self, message):
         super().__init__(message)
+
 
 class CmdCozyPassword(object):
     def __init__(self):
@@ -62,6 +73,14 @@ class CmdCozyPassword(object):
         parser_add.add_argument('-p', '--password', help='Password to store (generate if empty)',
                                 dest=Const.Add.Password)
 
+        parser_set = subparsers.add_parser(Const.Set.Name, help="Set key-password pair")
+        parser_set.add_argument('-k', '--key', help='key(human readable)', dest=Const.Set.Key, required=True)
+        parser_set.add_argument('-p', '--password', help='Password to store (generate if empty)',
+                                dest=Const.Set.Password)
+
+        parser_del = subparsers.add_parser(Const.Del.Name, help="Delete key-password pair")
+        parser_del.add_argument(Const.Del.Key, help='key(human readable)')
+
         parser_restore = subparsers.add_parser(Const.Restore.Name, help="Attempt to restore(debug only)")
 
         parser_print = subparsers.add_parser(Const.Print.Name, help="Print as json")
@@ -73,8 +92,8 @@ class CmdCozyPassword(object):
         self._resolver = ScandResolver()
         remote = getattr(self._args, Const.Remote_update, False)
         self._resolver.remote_update = remote
-        self._resolver.update()
         self._resolver.password = getpass()
+        self._resolver.update()
         if not self._resolver.check_password(self._resolver.password):
             raise PasswordError("Incorrect password")
 
@@ -96,8 +115,18 @@ class CmdCozyPassword(object):
     def process_add(self):
         key = getattr(self._args, Const.Add.Key, None)
         password = getattr(self._args, Const.Add.Password, None)
-
         self._resolver.add_password(key=key, password=password)
+        pass
+
+    def process_set(self):
+        key = getattr(self._args, Const.Set.Key, None)
+        password = getattr(self._args, Const.Set.Password, None)
+        self._resolver.set_password(key=key, password=password)
+        pass
+
+    def process_del(self):
+        key = getattr(self._args, Const.Del.Key, None)
+        self._resolver.del_item(key=key)
         pass
 
     def process_restore(self):
@@ -126,3 +155,5 @@ if __name__ == "__main__":
         print(passerr)
     except RuntimeError as runtimeerr:
         print(runtimeerr)
+    except KeyboardInterrupt:
+        exit(0)

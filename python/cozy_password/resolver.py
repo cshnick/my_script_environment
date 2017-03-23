@@ -61,7 +61,7 @@ def pull_if_required(method):
 
 def push_if_required(method):
     def deco(self, *args, **kwargs):
-        log.critical("push")
+        log.info("push")
         result = method(self, *args, **kwargs)
         if self._remote_update:
             self._push()
@@ -72,7 +72,7 @@ def push_if_required(method):
 
 def commit(method):
     def deco(self, *args, **kwargs):
-        log.critical("Commit")
+        log.info("Commit")
         result = method(self, *args, **kwargs)
         self._commit()
         return result
@@ -171,12 +171,34 @@ class ScandResolver(ResolverBase):
     @push_if_required
     @commit
     def add_password(self, key, password):
-        log.debug("Inserting password")
+        log.info('add; key: %s; password: %s' % (key, ''.join(['*' for x in password])))
+        if not key or key in self.pairs:
+            return False
         if password is None:
             password = generate_pass()
-
-        self._data[ScandResolver.Pairs_tag][key] = password
+        self.pairs[key] = password
         self._save_data()
+        return True
+
+    @push_if_required
+    @commit
+    def set_password(self, key, password):
+        log.info('set; key: %s; password: %s' % (key, ''.join(['*' for x in password])))
+        if not key or not password or not key in self.pairs:
+            return False
+        self.pairs[key] = password
+        self._save_data()
+        return True
+
+    @push_if_required
+    @commit
+    def del_item(self, key):
+        log.info('delete; key: %s' % key)
+        if not key or not key in self.pairs:
+            return False
+        del self.pairs[key]
+        self._save_data()
+        return True
 
     def restore(self):
         with open(ScandResolver._Filename_path, 'rb') as scand_encrypted:
