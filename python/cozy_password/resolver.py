@@ -187,6 +187,20 @@ class ScandResolver(ResolverBase):
         self._save_data()
         return True
 
+    @push_if_required()
+    @commit
+    def rename_key(self, old_key, new_key):
+        log.info('rename; old_key: %s; new_key: %s' % (old_key, new_key))
+        if not old_key or not new_key or\
+                not old_key in self.pairs or new_key in self.pairs or\
+                        old_key == new_key:
+            return False
+
+        self.pairs[new_key] = self.pairs.get(old_key)
+        del self.pairs[old_key]
+        self._save_data()
+        return True
+
     @push_if_required
     @commit
     def del_item(self, key):

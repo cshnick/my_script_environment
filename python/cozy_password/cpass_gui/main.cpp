@@ -14,6 +14,6 @@ int main(int argc, char *argv[])
     qmlRegisterType<Resolver>("PyResolver", 1, 0, "Resolver");
     engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
     QQuickWindow *mwn = static_cast<QQuickWindow*>(engine.rootObjects().at(0));
-    mwn->raise();
+    mwn->show();
     return app.exec();
 }

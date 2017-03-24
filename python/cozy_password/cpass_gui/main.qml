@@ -47,10 +47,14 @@ ApplicationWindow {
     readonly property string password: 'password'
     readonly property string login: 'login'
     readonly property string pending: "pending"
+    readonly property string newname: "newname"
     readonly property string cmd: "cmd"
     readonly property string add: "add"
     readonly property string set: "set"
+    readonly property string ren: 'ren'
     readonly property string del: "del"
+    readonly property string esc: 'esc'
+
 
     property string currentState: modes.initial
 
@@ -67,7 +71,11 @@ ApplicationWindow {
         var o = actions_stack.pop()
         currentState = o.state
         if (o.placeholder !== undefined) _enterField.placeholderText = o.placeholder
-        if (o.text !== undefined) _enterField.text = o.text
+        _enterField.text = o.placeholder !== undefined ? o.placeholder : ''
+        _enterField.text = o.text !== undefined ? o.text : ''
+        if (currentState === mwn.common) {
+            modes[common].onTextChanged('')
+        }
     }
 
     function glimpse_stack() {
@@ -86,7 +94,7 @@ ApplicationWindow {
     }
 
     property var commands : ([
-                                 add, set, del
+                                 add, set, del, ren, esc
                              ])
     property var actions_stack : ([])
     property var modes:
@@ -173,15 +181,21 @@ ApplicationWindow {
                           console.log("On commmon list index: " + index)
                       },
                       onListIndexAccepted : function(index) {
-                          _resolver.k2p_clipboard(listModel[index])
+                          if (listModel[index] === _enterField.text) {
+                              _resolver.k2p_clipboard(listModel[index])
+                              _enterField.text = ''
+                              mwn.hide()
+                          } else {
+                              _enterField.text = listModel[index]
+                          }
                       },
                       onKeysChanged: function(keys) {
                           this.onTextChanged(_enterField.text)
                       },
                       onEscape : function() {
-                          return_state()
+                          //return_state()
                           //FIXME Not updated automatically
-                          listModel = []
+                          mwn.hide()
                       }
                   }),
              password :
@@ -206,6 +220,48 @@ ApplicationWindow {
                           //Clean password dots
                           _enterField.text = ''
                           if (modes[o.state].onPassword({name: o.text, password: passwd})) {
+                              _enterField.style = _successTFStyle
+                              _enterField.placeholderText = 'Succeeded'
+
+                          } else {
+                              _enterField.style = _errorTFStyle
+                              _enterField.placeholderText = 'Error'
+                          }
+                          delay(1000 ,function() {
+                              _enterField.placeholderText = oldtext
+                              _enterField.style = _normalTFStyle
+                              to_common()
+
+                          })
+                      },
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          return_state()
+                      }
+                  }),
+             newname :
+                 ({
+                      container :
+                          ({
+                               width: 115 * dp,
+                               text: "new name"
+                           }),
+                      passwordButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode: (_passwordButton.pressed ? TextInput.Normal : TextInput.Password),
+                      placeholder: '',
+                      onTextChanged : function (text) {},
+                      onReturn : function() {
+                          var lnewname = _enterField.text
+                          var oldtext = _enterField.placeholderText
+                          var o = glimpse_stack()
+                          //Clean password dots
+                          _enterField.text = ''
+                          if (modes[o.state].onRename({name: lnewname})) {
                               _enterField.style = _successTFStyle
                               _enterField.placeholderText = 'Succeeded'
 
@@ -311,9 +367,7 @@ ApplicationWindow {
                       },
                       onReturn : function() {
                           if (_enterField.style === _normalTFStyle) {
-                              switch_state(password,
-                                           _enterField.text,
-                                           this.hint)
+                              switch_state(password,'', '')
                               _enterField.placeholderText = 'for "' + _enterField.text + '"'
                               _enterField.text = ''
                           }
@@ -421,7 +475,76 @@ ApplicationWindow {
                       onEscape : function() {
                           return_state()
                       }
-                  })
+                  }),
+             ren :
+                 ({
+                      container :
+                          ({
+                               width: 95 * dp,
+                               text: "rename"
+                           }),
+                      passwordButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode : TextInput.Normal,
+                      placeholder : '',
+                      onTextChanged : function (text) {
+                          modes[common].onTextChanged(text)
+                      },
+                      onReturn : function() {},
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {
+                          if (listModel[index] === _enterField.text) {
+                              if (listModel[index] === _enterField.text) {
+                                  switch_state(newname,
+                                               _enterField.text,
+                                               this.hint)
+                                  _enterField.placeholderText = 'for "' + _enterField.text + '"'
+                                  _enterField.text = ''
+                              } else {
+                                  _enterField.text = listModel[index]
+                              }
+                          } else {
+                              _enterField.text = listModel[index]
+                          }
+                      },
+                      onRename: function(o) {
+                          if (o.name === undefined) {
+                              return false
+                          }
+                          return true
+                      },
+                      onEscape : function() {
+                          return_state()
+                      }
+                  }),
+             esc :
+                 ({
+                      container :
+                          ({
+                               width: 60 * dp,
+                               text: 'exit'
+                           }),
+                      passwordButton :
+                          ({
+                               visible : false
+                           }),
+                      tfstyle: _normalTFStyle,
+                      echomode : TextInput.Normal,
+                      placeholder : '',
+                      onTextChanged : function (text) {
+                      },
+                      onReturn : function() {
+                          Qt.quit()
+                      },
+                      onListIndexChanged : function(index) {},
+                      onListIndexAccepted : function(index) {},
+                      onEscape : function() {
+                          return_state(actions_stack.pop().state)
+                      }
+                  }),
          })
 
     property string storedText: ''

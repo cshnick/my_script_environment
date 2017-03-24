@@ -4,6 +4,7 @@ from PyQt5.QtNetwork import QLocalSocket, QLocalServer
 import os
 import logging as log
 
+
 class QtSingleGuiApplication(QGuiApplication):
     messageReceived = pyqtSignal(str, name='messageReceived')
 
@@ -47,7 +48,7 @@ class QtSingleGuiApplication(QGuiApplication):
     def activationWindow(self):
         return self._activationWindow
 
-    def setActivationWindow(self, activationWindow, activateOnMessage = True):
+    def setActivationWindow(self, activationWindow, activateOnMessage=True):
         self._activationWindow = activationWindow
         self._activateOnMessage = activateOnMessage
 
@@ -57,6 +58,8 @@ class QtSingleGuiApplication(QGuiApplication):
         self._activationWindow.setWindowState(
             self._activationWindow.windowState() & ~Qt.WindowMinimized)
         self._activationWindow.show()
+        self._activationWindow.raise_()
+        self._activationWindow.requestActivate()
 
     def sendMessage(self, msg):
         if not self._outStream:

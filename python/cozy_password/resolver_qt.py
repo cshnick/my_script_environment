@@ -126,3 +126,4 @@ with open_single_application(appGuid, sys.argv) as app:
     app.setActivationWindow(mwn)
     mwn.hide()
     sys.exit(app.exec_())
+
