@@ -31,6 +31,7 @@ public:
     Q_SLOT bool new_entry(const QString &/*key*/, const QString &/*password*/) {return true;}
     Q_SLOT bool set(const QString &/*key*/, const QString &/*password*/) {return true;}
     Q_SLOT bool del(const QString &/*key*/) {return true;}
+    Q_SLOT bool rename(const QString &/*old_name*/, const QString &/*new_name*/) {return true;}
     Q_SLOT void sync() {Q_EMIT(keysChanged(variants_.keys()));}
 
 private:

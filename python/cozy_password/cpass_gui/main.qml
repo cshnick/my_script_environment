@@ -47,11 +47,11 @@ ApplicationWindow {
     readonly property string password: 'password'
     readonly property string login: 'login'
     readonly property string pending: "pending"
-    readonly property string newname: "newname"
+    readonly property string ren: "ren"
     readonly property string cmd: "cmd"
     readonly property string add: "add"
     readonly property string set: "set"
-    readonly property string ren: 'ren'
+    readonly property string addinfo: 'addinfo'
     readonly property string del: "del"
     readonly property string esc: 'esc'
 
@@ -240,11 +240,11 @@ ApplicationWindow {
                           return_state()
                       }
                   }),
-             newname :
+             addinfo :
                  ({
                       container :
                           ({
-                               width: 115 * dp,
+                               width: 120 * dp,
                                text: "new name"
                            }),
                       passwordButton :
@@ -252,7 +252,7 @@ ApplicationWindow {
                                visible : false
                            }),
                       tfstyle: _normalTFStyle,
-                      echomode: (_passwordButton.pressed ? TextInput.Normal : TextInput.Password),
+                      echomode: TextInput.Normal,
                       placeholder: '',
                       onTextChanged : function (text) {},
                       onReturn : function() {
@@ -261,7 +261,7 @@ ApplicationWindow {
                           var o = glimpse_stack()
                           //Clean password dots
                           _enterField.text = ''
-                          if (modes[o.state].onRename({name: lnewname})) {
+                          if (modes[o.state].onRename({oldname : o.text, newname: lnewname})) {
                               _enterField.style = _successTFStyle
                               _enterField.placeholderText = 'Succeeded'
 
@@ -498,9 +498,7 @@ ApplicationWindow {
                       onListIndexAccepted : function(index) {
                           if (listModel[index] === _enterField.text) {
                               if (listModel[index] === _enterField.text) {
-                                  switch_state(newname,
-                                               _enterField.text,
-                                               this.hint)
+                                  switch_state(addinfo, _enterField.text)
                                   _enterField.placeholderText = 'for "' + _enterField.text + '"'
                                   _enterField.text = ''
                               } else {
@@ -514,7 +512,7 @@ ApplicationWindow {
                           if (o.name === undefined) {
                               return false
                           }
-                          return true
+                          return _resolver.rename()
                       },
                       onEscape : function() {
                           return_state()

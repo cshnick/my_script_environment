@@ -187,7 +187,7 @@ class ScandResolver(ResolverBase):
         self._save_data()
         return True
 
-    @push_if_required()
+    @push_if_required
     @commit
     def rename_key(self, old_key, new_key):
         log.info('rename; old_key: %s; new_key: %s' % (old_key, new_key))

@@ -40,6 +40,11 @@ class Const(object):
         Name = 'del'
         Key = 'Del.Key'
 
+    class Rename:
+        Name = 'rename'
+        OldName = 'Ren.OldName'
+        NewName = 'Ren.NewName'
+
     class Get:
         Name = "get"
         Key = "Get.Key"
@@ -80,6 +85,10 @@ class CmdCozyPassword(object):
 
         parser_del = subparsers.add_parser(Const.Del.Name, help="Delete key-password pair")
         parser_del.add_argument(Const.Del.Key, help='key(human readable)')
+
+        parser_ren = subparsers.add_parser(Const.Rename.Name, help="Rename specified key")
+        parser_ren.add_argument(Const.Rename.OldName, help='old name')
+        parser_ren.add_argument(Const.Rename.NewName, help='new name')
 
         parser_restore = subparsers.add_parser(Const.Restore.Name, help="Attempt to restore(debug only)")
 
@@ -128,6 +137,11 @@ class CmdCozyPassword(object):
         key = getattr(self._args, Const.Del.Key, None)
         self._resolver.del_item(key=key)
         pass
+
+    def process_rename(self):
+        old = getattr(self._args, Const.Rename.OldName, None)
+        new = getattr(self._args, Const.Rename.NewName, None)
+        self._resolver.rename_key(old, new)
 
     def process_restore(self):
         log.debug("Attempting to restore")
