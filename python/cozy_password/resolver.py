@@ -81,10 +81,10 @@ class ScandResolver(ResolverBase):
     _Filename = "scand_map.json"
     _Encrypted = "map.json.enc"
     _Dir_path = os.path.dirname(os.path.realpath(__file__))
-    _Repo_path = _Dir_path + '/encoded'
+    _Repo_path = os.path.join(_Dir_path, 'encoded')
     _Repo_remote_path = 'git@github.com:cshnick/encodedp.git'
-    _Filename_path = _Dir_path + '/' + _Filename
-    _Encrypted_path = _Repo_path + '/' + _Encrypted
+    _Filename_path = os.path.join(_Dir_path, _Filename)
+    _Encrypted_path = os.path.join(_Repo_path, _Encrypted)
 
     Pairs_tag = "Pairs"
 
@@ -259,6 +259,7 @@ class ScandResolver(ResolverBase):
 
     def _commit(self):
         if not os.path.exists(ScandResolver.RepoPath + "/.git"):
+            os.makedirs(self._Repo_path, exist_ok=True)
             repo = Repo.clone_from(self._remote, self._encrypted_dir)
         else:
             repo = Repo(self._encrypted_dir)
