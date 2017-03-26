@@ -193,8 +193,6 @@ ApplicationWindow {
                           this.onTextChanged(_enterField.text)
                       },
                       onEscape : function() {
-                          //return_state()
-                          //FIXME Not updated automatically
                           mwn.hide()
                       }
                   }),
@@ -736,6 +734,7 @@ ApplicationWindow {
                 border.color: mwn.border_color
                 border.width: 0//mwn.border_width
             }
+            renderType: Text.NativeRendering
             placeholderTextColor: colors.blue
         }
     }
@@ -746,6 +745,7 @@ ApplicationWindow {
                 border.color: colors.red
                 border.width: 0//mwn.border_width
             }
+            renderType: Text.NativeRendering
             placeholderTextColor: colors.red
         }
     }
@@ -756,6 +756,7 @@ ApplicationWindow {
                 border.color: mwn.border_color
                 border.width: 0//mwn.border_width
             }
+            renderType: Text.NativeRendering
             placeholderTextColor: colors.green
         }
     }
@@ -766,6 +767,7 @@ ApplicationWindow {
                 border.color: mwn.border_color
                 border.width: 0//mwn.border_width
             }
+            renderType: Text.NativeRendering
             textColor: colors.red
         }
     }
