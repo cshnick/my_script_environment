@@ -11,7 +11,7 @@ import git
 import time
 from io import BytesIO
 
-log.basicConfig(level=log.DEBUG if 'DEBUG' in os.environ else log.WARNING,
+log.basicConfig(level=log.INFO if 'DEBUG' in os.environ else log.WARNING,
                 format='%(asctime)s - %(levelname)s - %(message)s')
 
 
@@ -41,7 +41,7 @@ def profile(method):
         start_time = time.time()
         ret = method(self, *args, **kwargs)
         elapsed_time = time.time() - start_time
-        log.debug('PROFILE - Method: %s, args: %s, elapsed: %s' % (method.__name__, args, elapsed_time))
+        log.info('PROFILE - Method: %s, args: %s, elapsed: %s' % (method.__name__, args, elapsed_time))
         return ret
 
     return deco
@@ -58,7 +58,6 @@ def pull_if_required(method):
 
 def push_if_required(method):
     def deco(self, *args, **kwargs):
-        log.info("push")
         result = method(self, *args, **kwargs)
         if self._remote_update:
             self._push()
@@ -69,7 +68,6 @@ def push_if_required(method):
 
 def commit(method):
     def deco(self, *args, **kwargs):
-        log.info("Commit")
         result = method(self, *args, **kwargs)
         self._commit()
         return result
@@ -104,6 +102,7 @@ class ScandResolver(ResolverBase):
         self._remote = self._Repo_remote_path
         self._remote_update = False
         self._data = {self.Pairs_tag: {}}
+        self._commit_info = None
 
     @property
     def path(self):
@@ -142,9 +141,18 @@ class ScandResolver(ResolverBase):
     def remote_update(self, value):
         self._remote_update = value
 
+    @property
+    def _commit_add(self):
+        return self._commit_info
+
+    @_commit_add.setter
+    def _commit_add(self, value):
+        self._commit_info = value
+        log.info(value)
+
     @pull_if_required
     def password_for_name(self, name, default=None):
-        log.debug("password for name %s from %s" % (name, self.path))
+        self._commit_add = "password for name %s from %s" % (name, self.path)
         password = default
         if name in self.pairs:
             password = self.pairs[name]
@@ -168,7 +176,7 @@ class ScandResolver(ResolverBase):
     @push_if_required
     @commit
     def add_password(self, key, password):
-        log.info('add; key: %s; password: %s' % (key, ''.join(['*' for x in password])))
+        self._commit_add = 'add; key: %s; password: %s' % (key, ''.join(['*' for x in password]))
         if not key or key in self.pairs:
             return False
         if password is None:
@@ -180,7 +188,7 @@ class ScandResolver(ResolverBase):
     @push_if_required
     @commit
     def set_password(self, key, password):
-        log.info('set; key: %s; password: %s' % (key, ''.join(['*' for x in password])))
+        self._commit_add = 'set; key: %s; password: %s' % (key, ''.join(['*' for x in password]))
         if not key or not password or not key in self.pairs:
             return False
         self.pairs[key] = password
@@ -190,7 +198,7 @@ class ScandResolver(ResolverBase):
     @push_if_required
     @commit
     def rename_key(self, old_key, new_key):
-        log.info('rename; old_key: %s; new_key: %s' % (old_key, new_key))
+        self._commit_add = 'rename; old_key: %s; new_key: %s' % (old_key, new_key)
         if not old_key or not new_key or \
                 not old_key in self.pairs or new_key in self.pairs or \
                         old_key == new_key:
@@ -204,7 +212,7 @@ class ScandResolver(ResolverBase):
     @push_if_required
     @commit
     def del_item(self, key):
-        log.info('delete; key: %s' % key)
+        self._commit_add = 'delete; key: %s' % key
         if not key or not key in self.pairs:
             return False
         del self.pairs[key]
@@ -270,8 +278,10 @@ class ScandResolver(ResolverBase):
             import datetime
             import socket
             index.add(modified)
-            index.commit('%s - from %s' % (datetime.datetime.now(), socket.gethostname()))
-
+            index.commit('%s %s- from %s'
+                         % (datetime.datetime.now(),
+                            '- ' + self._commit_info + ' ' if self._commit_info else '',
+                            socket.gethostname()))
         return repo
 
     def _pull(self):
@@ -279,15 +289,15 @@ class ScandResolver(ResolverBase):
 
         class MyProgressPrinter(git.RemoteProgress):
             def update(self, op_code, cur_count, max_count=None, message=''):
-                log.debug("%s percents" % (cur_count / (max_count or 100.0) * 100))
+                log.info("%s percents" % (cur_count / (max_count or 100.0) * 100))
 
         for info in repo.remotes.origin.pull(progress=MyProgressPrinter()):
-            log.debug("Pulled %s to %s" % (info.ref, info.commit.message))
+            log.info("Pulled %s to %s" % (info.ref, info.commit.message))
 
     def _push(self):
         repo = self._commit()
         for info in repo.remotes.origin.push():
-            log.debug("Pushed %s" % info.local_ref.commit.message)
+            log.info("Pushed %s" % info.local_ref.commit.message)
 
     def _save_data(self):
         self._save(io='buffer')
