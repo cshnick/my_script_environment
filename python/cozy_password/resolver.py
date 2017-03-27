@@ -80,8 +80,6 @@ class ScandResolver(ResolverBase):
     _Encrypted = "map.json.enc"
     _Dir_path = os.path.dirname(os.path.realpath(__file__))
     _Repo_path = os.path.join(_Dir_path, 'encoded')
-    _Repo_remote_path = 'git@github.com:cshnick/encodedp.git'
-    _Filename_path = os.path.join(_Dir_path, _Filename)
     _Encrypted_path = os.path.join(_Repo_path, _Encrypted)
 
     Pairs_tag = "Pairs"
@@ -95,7 +93,8 @@ class ScandResolver(ResolverBase):
 
         """
         super().__init__()
-        self._filename = self._Filename
+        self._username = ''
+        self._remote_path = ''
         self._encrypted_filename = self._Encrypted
         self._encrypted_dir = self._Repo_path
         self._enc_password = ''
@@ -219,13 +218,6 @@ class ScandResolver(ResolverBase):
         self._save_data()
         return True
 
-    def restore(self):
-        with open(ScandResolver._Filename_path, 'rb') as scand_encrypted:
-            with open(ScandResolver._Encrypted_path, 'wb') as scand_map_file:
-                file_cryptor.encrypt(in_file=scand_encrypted,
-                                     out_file=scand_map_file,
-                                     password=b'')
-
     @pull_if_required
     def update(self):
         self._load_to_data()
@@ -302,15 +294,8 @@ class ScandResolver(ResolverBase):
     def _save_data(self):
         self._save(io='buffer')
 
-    def _save_file(self):
-        self._save(ScandResolver._Filename_path, 'r', io='file')
-
     def _load_to_data(self):
         try:
             self._load(self._data, io='buffer')
         except DecodeError:
             pass
-
-    def _load_from_decoded(self):
-        self._load(ScandResolver._Filename_path, 'r+', io='file')
-        pass
