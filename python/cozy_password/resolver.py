@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import os.path as osp
 import cozy_password.file_cryptor as file_cryptor
 from contextlib import contextmanager
 from cozy_password.password_generator import generate_pass
@@ -13,6 +14,9 @@ from io import BytesIO
 
 log.basicConfig(level=log.INFO if 'DEBUG' in os.environ else log.WARNING,
                 format='%(asctime)s - %(levelname)s - %(message)s')
+
+_SELF_PWD = os.path.realpath(__file__)
+_PAIRS_TAG = 'Pairs'
 
 
 class ResolverBase(object):
@@ -76,16 +80,9 @@ def commit(method):
 
 
 class ScandResolver(ResolverBase):
-    _Filename = "scand_map.json"
-    _Encrypted = "map.json.enc"
-    _Dir_path = os.path.dirname(os.path.realpath(__file__))
-    _Repo_path = os.path.join(_Dir_path, 'encoded')
-    _Encrypted_path = os.path.join(_Repo_path, _Encrypted)
-
-    Pairs_tag = "Pairs"
-
-    RepoPath = _Repo_path
-    RepoRemote = _Repo_remote_path
+    _ENC_FILENAME = 'map.json.enc'
+    _DEFAULT_STORAGE_NAME = 'encoded'
+    _PAIRS_TAG = "Pairs"
 
     def __init__(self):
         """ Create resolver with empty data.
@@ -94,23 +91,13 @@ class ScandResolver(ResolverBase):
         """
         super().__init__()
         self._username = ''
-        self._remote_path = ''
-        self._encrypted_filename = self._Encrypted
-        self._encrypted_dir = self._Repo_path
+        self._remote_url = ''
+        self._target_file = self._ENC_FILENAME
+        self._storage = osp.join(_SELF_PWD, self._DEFAULT_STORAGE_NAME)
         self._enc_password = ''
-        self._remote = self._Repo_remote_path
         self._remote_update = False
-        self._data = {self.Pairs_tag: {}}
+        self._data = {_PAIRS_TAG: {}}
         self._commit_info = None
-
-    @property
-    def path(self):
-        return os.path.join(self._encrypted_dir, self._encrypted_filename)
-
-    @path.setter
-    def path(self, value):
-        self._encrypted_dir = os.path.dirname(value)
-        self._encrypted_filename = os.path.basename(value)
 
     @property
     def password(self):
@@ -121,16 +108,25 @@ class ScandResolver(ResolverBase):
         self._enc_password = value
 
     @property
-    def remote(self):
-        return self._remote
+    def remote_url(self):
+        return self._remote_url
 
-    @remote.setter
-    def remote(self, value):
-        self._remote = value
+    @remote_url.setter
+    def remote_url(self, value):
+        self._remote_url = value
+
+    @property
+    def storage(self):
+        return self._storage
+
+    @storage.setter
+    def storage(self, value):
+        self._storage = value
+        self._enc_password = ''
 
     @property
     def pairs(self):
-        return self._data[self.Pairs_tag]
+        return self._data[_PAIRS_TAG]
 
     @property
     def remote_update(self):
@@ -139,6 +135,14 @@ class ScandResolver(ResolverBase):
     @remote_update.setter
     def remote_update(self, value):
         self._remote_update = value
+
+    @property
+    def _target_path(self):
+        return os.path.join(self._storage, self._username, self._target_file)
+
+    @property
+    def _target_dir(self):
+        return os.path.join(self._storage, self._username)
 
     @property
     def _commit_add(self):
@@ -151,7 +155,7 @@ class ScandResolver(ResolverBase):
 
     @pull_if_required
     def password_for_name(self, name, default=None):
-        self._commit_add = "password for name %s from %s" % (name, self.path)
+        self._commit_add = "password for name %s" % name
         password = default
         if name in self.pairs:
             password = self.pairs[name]
@@ -160,7 +164,7 @@ class ScandResolver(ResolverBase):
 
     @profile
     def check_password(self, chk):
-        empty_dic = {ScandResolver.Pairs_tag: {}}
+        empty_dic = {_PAIRS_TAG: {}}
         old_pass, old_data = self.password, self._data
         self.password = chk
         try:
@@ -175,7 +179,7 @@ class ScandResolver(ResolverBase):
     @push_if_required
     @commit
     def add_password(self, key, password):
-        self._commit_add = 'add; key: %s; password: %s' % (key, ''.join(['*' for x in password]))
+        self._commit_add = 'add; key: %s; password: %s' % (key, ''.join(['*' for _ in password]))
         if not key or key in self.pairs:
             return False
         if password is None:
@@ -224,7 +228,7 @@ class ScandResolver(ResolverBase):
 
     def _save(self, *args, **kwargs):
         with customopen(*args, **kwargs) as source_io:
-            with open(self.path, "wb") as enc_dest_io:
+            with open(self._target_path, "wb") as enc_dest_io:
                 # fill buffer with json data
                 if kwargs['io'] is 'buffer':
                     json_bytes = json.dumps(self._data).encode('utf-8')
@@ -237,7 +241,7 @@ class ScandResolver(ResolverBase):
 
     def _load(self, *args, **kwargs):
         try:
-            with open(self.path, "rb") as enc_source_io:
+            with open(self._target_path, "rb") as enc_source_io:
                 with customopen(*args, **kwargs) as destination_io:
                     try:
                         file_cryptor.decrypt(in_file=enc_source_io,
@@ -258,11 +262,11 @@ class ScandResolver(ResolverBase):
             raise RuntimeError("Suppose you've not synced to remote repo. Try using -r option")
 
     def _commit(self):
-        if not os.path.exists(ScandResolver.RepoPath + "/.git"):
-            os.makedirs(self._Repo_path, exist_ok=True)
-            repo = Repo.clone_from(self._remote, self._encrypted_dir)
+        os.makedirs(self._target_dir, exist_ok=True)
+        if not os.path.exists(ScandResolver._target_dir + "/.git"):
+            repo = Repo.clone_from(self._remote_url, self._target_dir)
         else:
-            repo = Repo(self._encrypted_dir)
+            repo = Repo(self._target_dir)
         index = repo.index
         diff = index.diff(None)
         modified = [di.a_path or di.b_path for di in index.diff(None) if di.change_type == 'M']
