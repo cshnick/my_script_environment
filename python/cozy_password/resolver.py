@@ -191,8 +191,8 @@ class ScandResolver(ResolverBase):
     @commit
     def rename_key(self, old_key, new_key):
         log.info('rename; old_key: %s; new_key: %s' % (old_key, new_key))
-        if not old_key or not new_key or\
-                not old_key in self.pairs or new_key in self.pairs or\
+        if not old_key or not new_key or \
+                not old_key in self.pairs or new_key in self.pairs or \
                         old_key == new_key:
             return False
 
@@ -216,7 +216,7 @@ class ScandResolver(ResolverBase):
             with open(ScandResolver._Encrypted_path, 'wb') as scand_map_file:
                 file_cryptor.encrypt(in_file=scand_encrypted,
                                      out_file=scand_map_file,
-                                     password=b'Qwerty#0')
+                                     password=b'')
 
     @pull_if_required
     def update(self):

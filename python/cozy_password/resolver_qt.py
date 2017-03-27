@@ -93,6 +93,10 @@ class Resolver(QObject):
         with self.remote_update():
             return self._resolver.del_item(key)
 
+    @pyqtSlot(str, str, result=bool)
+    def rename(self, oldname, newname):
+        return self._resolver.rename_key(oldname, newname)
+
     @pyqtSlot(str, result=bool)
     def check_password(self, key):
         return self._resolver.check_password(key)

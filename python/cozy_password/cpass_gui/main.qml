@@ -507,10 +507,10 @@ ApplicationWindow {
                           }
                       },
                       onRename: function(o) {
-                          if (o.name === undefined) {
+                          if (o.newname === undefined || o.oldname === undefined) {
                               return false
                           }
-                          return _resolver.rename()
+                          return _resolver.rename(o.oldname, o.newname)
                       },
                       onEscape : function() {
                           return_state()
