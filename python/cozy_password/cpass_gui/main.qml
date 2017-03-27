@@ -70,8 +70,7 @@ ApplicationWindow {
     function return_state() {
         var o = actions_stack.pop()
         currentState = o.state
-        if (o.placeholder !== undefined) _enterField.placeholderText = o.placeholder
-        _enterField.text = o.placeholder !== undefined ? o.placeholder : ''
+        _enterField.placeholderText = o.placeholder !== undefined ? o.placeholder : ''
         _enterField.text = o.text !== undefined ? o.text : ''
         if (currentState === mwn.common) {
             modes[common].onTextChanged('')
@@ -83,6 +82,10 @@ ApplicationWindow {
     }
 
     function to_common() {
+        //No need to swhitch unless we're there
+        if (currentState === common) {
+            return
+        }
         var o;
         while (true) {
             if ((o = actions_stack.pop()).state === common) break
@@ -181,13 +184,9 @@ ApplicationWindow {
                           console.log("On commmon list index: " + index)
                       },
                       onListIndexAccepted : function(index) {
-                          if (listModel[index] === _enterField.text) {
-                              _resolver.k2p_clipboard(listModel[index])
-                              _enterField.text = ''
-                              mwn.hide()
-                          } else {
-                              _enterField.text = listModel[index]
-                          }
+                          _resolver.k2p_clipboard(listModel[index])
+                          _enterField.text = ''
+                          mwn.hide()
                       },
                       onKeysChanged: function(keys) {
                           this.onTextChanged(_enterField.text)
@@ -226,10 +225,8 @@ ApplicationWindow {
                               _enterField.placeholderText = 'Error'
                           }
                           delay(1000 ,function() {
-                              _enterField.placeholderText = oldtext
                               _enterField.style = _normalTFStyle
                               to_common()
-
                           })
                       },
                       onListIndexChanged : function(index) {},
@@ -268,7 +265,6 @@ ApplicationWindow {
                               _enterField.placeholderText = 'Error'
                           }
                           delay(1000 ,function() {
-                              _enterField.placeholderText = oldtext
                               _enterField.style = _normalTFStyle
                               to_common()
 
@@ -365,7 +361,7 @@ ApplicationWindow {
                       },
                       onReturn : function() {
                           if (_enterField.style === _normalTFStyle) {
-                              switch_state(password,'', '')
+                              switch_state(password, _enterField.text)
                               _enterField.placeholderText = 'for "' + _enterField.text + '"'
                               _enterField.text = ''
                           }
@@ -456,7 +452,6 @@ ApplicationWindow {
                                   _enterField.placeholderText = 'Error'
                               }
                               delay(1000 ,function() {
-                                  _enterField.placeholderText = oldtext
                                   _enterField.style = _normalTFStyle
                                   to_common()
                               })
