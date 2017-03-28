@@ -1,22 +1,33 @@
 #!/usr/bin/env python
 
-import os
-import os.path as osp
-import cozy_password.file_cryptor as file_cryptor
-from contextlib import contextmanager
-from cozy_password.password_generator import generate_pass
-import logging as log
 import json
-from git import Repo
-import git
+import logging as log
+import os
+from os.path import realpath, join, dirname
 import time
+from contextlib import contextmanager
 from io import BytesIO
+
+import git
+from git import Repo
+
+import cozy_password.file_cryptor as file_cryptor
+from cozy_password.password_generator import generate_pass
 
 log.basicConfig(level=log.INFO if 'DEBUG' in os.environ else log.WARNING,
                 format='%(asctime)s - %(levelname)s - %(message)s')
 
-_SELF_PWD = os.path.realpath(__file__)
+_SELF_PWD = dirname(realpath(__file__))
 _PAIRS_TAG = 'Pairs'
+_CONFIG_TAG = 'configuration'
+_DEF_USER_TAG = 'default_user'
+_USERS_TAG = 'users'
+_REMOTE_TAG = 'remote'
+_URL_TAG = 'url'
+_MERGE_PRIORITY_TAG = 'merge_priority'
+_LOCAL_VAL = 'local'
+_REMOTE_VAL = 'remote'
+_MASTER = 'master'
 
 
 class ResolverBase(object):
@@ -47,6 +58,27 @@ def profile(method):
         elapsed_time = time.time() - start_time
         log.info('PROFILE - Method: %s, args: %s, elapsed: %s' % (method.__name__, args, elapsed_time))
         return ret
+
+    return deco
+
+
+def sync_repo(method):
+    def deco(self, *args, **kwargs):
+        branch = 'master'
+        repo_path = self._target_dir
+        try:
+            repo = git.Repo(repo_path)
+            if self._is_local(repo) and self._remote_update:
+                self._make_remote_repo()
+            else:
+                repo.remotes.origin.pull()
+                repo.remotes.origin.push()
+            log.info('Init repo, repo exists')
+        except (git.InvalidGitRepositoryError, git.NoSuchPathError):
+            os.makedirs(self._target_dir, exist_ok=True)
+            self._make_remote_repo() if self._remote_update else self._make_local_repo()
+        result = method(self, *args, **kwargs)
+        return result
 
     return deco
 
@@ -82,7 +114,7 @@ def commit(method):
 class ScandResolver(ResolverBase):
     _ENC_FILENAME = 'map.json.enc'
     _DEFAULT_STORAGE_NAME = 'encoded'
-    _PAIRS_TAG = "Pairs"
+    _PAIRS_TAG = 'Pairs'
 
     def __init__(self):
         """ Create resolver with empty data.
@@ -93,11 +125,12 @@ class ScandResolver(ResolverBase):
         self._username = ''
         self._remote_url = ''
         self._target_file = self._ENC_FILENAME
-        self._storage = osp.join(_SELF_PWD, self._DEFAULT_STORAGE_NAME)
+        self._storage = join(_SELF_PWD, self._DEFAULT_STORAGE_NAME)
         self._enc_password = ''
         self._remote_update = False
         self._data = {_PAIRS_TAG: {}}
         self._commit_info = None
+        self._merge_priority = None
 
     @property
     def password(self):
@@ -153,6 +186,14 @@ class ScandResolver(ResolverBase):
         self._commit_info = value
         log.info(value)
 
+    def read_config(self):
+        config_path = __file__.replace('.py', '.json')
+        with open(config_path, 'r') as cf:
+            data = json.load(cf)
+        self._username = data[_CONFIG_TAG][_DEF_USER_TAG]
+        self.remote_url = data[_CONFIG_TAG][_USERS_TAG][self._username][_REMOTE_TAG][_URL_TAG]
+        self._merge_priority = data[_CONFIG_TAG][_USERS_TAG][self._username][_REMOTE_TAG][_MERGE_PRIORITY_TAG]
+
     @pull_if_required
     def password_for_name(self, name, default=None):
         self._commit_add = "password for name %s" % name
@@ -191,7 +232,7 @@ class ScandResolver(ResolverBase):
     @push_if_required
     @commit
     def set_password(self, key, password):
-        self._commit_add = 'set; key: %s; password: %s' % (key, ''.join(['*' for x in password]))
+        self._commit_add = 'set; key: %s; password: %s' % (key, ''.join(['*' for _ in password]))
         if not key or not password or not key in self.pairs:
             return False
         self.pairs[key] = password
@@ -222,11 +263,12 @@ class ScandResolver(ResolverBase):
         self._save_data()
         return True
 
-    @pull_if_required
+    @sync_repo
     def update(self):
         self._load_to_data()
 
     def _save(self, *args, **kwargs):
+        os.makedirs(self._target_dir, exist_ok=True)
         with customopen(*args, **kwargs) as source_io:
             with open(self._target_path, "wb") as enc_dest_io:
                 # fill buffer with json data
@@ -259,17 +301,20 @@ class ScandResolver(ResolverBase):
                         raise DecodeError()
                     self._data = json.loads(decoded)
         except FileNotFoundError:
-            raise RuntimeError("Suppose you've not synced to remote repo. Try using -r option")
+            if self.password:
+                self._save_data()
+                self._commit_add = 'initial_commit'
+                index = Repo(self._target_dir).index
+                index.add([self._ENC_FILENAME])
+                index.commit("Initial commit; %s created" % self._ENC_FILENAME)
+            else:
+                raise RuntimeError("Password not set")
 
     def _commit(self):
-        os.makedirs(self._target_dir, exist_ok=True)
-        if not os.path.exists(ScandResolver._target_dir + "/.git"):
-            repo = Repo.clone_from(self._remote_url, self._target_dir)
-        else:
-            repo = Repo(self._target_dir)
+        repo = Repo(self._target_dir)
+        assert repo
         index = repo.index
-        diff = index.diff(None)
-        modified = [di.a_path or di.b_path for di in index.diff(None) if di.change_type == 'M']
+        modified = [di.a_path or di.b_path for di in index.diff(None) if di.change_type in ['M']]
         if modified:
             import datetime
             import socket
@@ -303,3 +348,33 @@ class ScandResolver(ResolverBase):
             self._load(self._data, io='buffer')
         except DecodeError:
             pass
+
+    def _make_local_repo(self):
+        repo = git.Repo.init(self._target_dir)
+        log.info('Created local repository')
+        return repo
+
+    def _make_remote_repo(self):
+        branch = _MASTER
+        repo = git.Repo.init(self._target_dir)
+        origin = repo.create_remote('origin', self._remote_url)
+        origin.fetch()
+
+        if self._merge_priority == _LOCAL_VAL:
+            commit1 = repo.remotes.origin.refs.master.commit
+            commit2 = repo.head.commit
+            if commit1 != commit2:
+                merge_base = repo.merge_base(commit1, commit2)
+                repo.index.merge_tree(repo.head, base=merge_base).commit('Merge')
+
+        master = repo.create_head(branch, origin.refs[branch], force=True)
+        master.set_tracking_branch(origin.refs[branch])
+        master.checkout()
+
+        origin.pull()
+        origin.push()
+        return repo
+
+    def _is_local(self, repo=None):
+        repo_ref = repo or git.Repo.init(self._target_dir)
+        return True if not repo_ref.remotes else False

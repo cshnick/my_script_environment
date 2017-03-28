@@ -99,8 +99,8 @@ class CmdCozyPassword(object):
 
         self._args = parser.parse_args()
         self._resolver = ScandResolver()
-        remote = getattr(self._args, Const.Remote_update, False)
-        self._resolver.remote_update = remote
+        self._resolver.read_config()
+        self._resolver.remote_update = getattr(self._args, Const.Remote_update, False)
         self._resolver.password = getpass()
         self._resolver.update()
         if not self._resolver.check_password(self._resolver.password):

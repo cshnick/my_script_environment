@@ -1,11 +1,14 @@
 {
   "name": "resolver_qt.json",
   "description": "Main configuration file to manipulate defaut data for resolver-qt",
-  "coniguration": {
+  "configuration": {
     "default_user": "ilia",
     "users": {
       "ilia": {
-        "remote": "git@github.com:cshnick/encodedp.git"
+        "remote": {
+          "url" : "git@github.com:cshnick/encodedp.git",
+          "merge_priority" : "remote"
+        }
       }
     }
   }
