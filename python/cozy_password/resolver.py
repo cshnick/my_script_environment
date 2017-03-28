@@ -70,7 +70,7 @@ def sync_repo(method):
             repo = git.Repo(repo_path)
             if self._is_local(repo) and self._remote_update:
                 self._make_remote_repo()
-            else:
+            elif self._remote_update:
                 repo.remotes.origin.pull()
                 repo.remotes.origin.push()
             log.info('Init repo, repo exists')
