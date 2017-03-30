@@ -76,13 +76,14 @@ def sync_repo(method):
             if self._needs_upgrade():
                 self._upgrade_to_remote(repo)
         except (git.InvalidGitRepositoryError, git.NoSuchPathError):
-            # 1s time usage
+            # 1s time usagef
             repo = self._init_local()
-            self._upgrade_to_remote(repo)
+            if self.remote_update:
+                self._upgrade_to_remote(repo)
 
-        self._pull()
+        self._pull() if self.remote_update else self._commit()
         result = method(self, *args, **kwargs)
-        self._push()
+        self._push() if self.remote_update else self._commit()
         return result
 
     return deco
@@ -111,6 +112,19 @@ def commit(method):
     def deco(self, *args, **kwargs):
         result = method(self, *args, **kwargs)
         self._commit()
+        return result
+
+    return deco
+
+
+def handle_unexists(method):
+    def deco(self, *args, **kwargs):
+        try:
+            result = method(self, *args, **kwargs)
+        except git.GitCommandError as e:
+            if 'not found' in str(e):
+                self._provider_helper.create_repo()
+            result = method(self, *args, **kwargs)
         return result
 
     return deco
@@ -342,6 +356,7 @@ class ScandResolver(ResolverBase):
                             socket.gethostname()))
         return repo
 
+    @handle_unexists
     def _pull(self):
         repo = self._commit()
 
@@ -352,6 +367,7 @@ class ScandResolver(ResolverBase):
         for info in repo.remotes.origin.pull(progress=MyProgressPrinter()):
             log.info("Pulled %s to %s" % (info.ref, info.commit.message))
 
+    @handle_unexists
     def _push(self, repo=None):
         repo = repo or self._commit()
         for info in repo.remotes.origin.push(repo.references[_MASTER]):
@@ -375,7 +391,7 @@ class ScandResolver(ResolverBase):
     def _upgrade_to_remote(self, repo):
         repo.create_remote('origin', self._remote_url)
         log.info('origin is %s' % self._remote_url)
-        self.commit_add = "Empty repository"
+        self.commit_add = "Upgrade to remote"
         self._commit(repo, initial=True)
         self._push(repo)
 
@@ -421,7 +437,6 @@ class BBApiProvider(ApiProviderBase):
             crf_config = json.load(crf)
         self.username = crf_config[_USERNAME_TAG] or None
         self.password = crf_config[_PASSWORD_TAG] or None
-        self.create_repo()
 
     @property
     def url(self):
@@ -440,6 +455,6 @@ class BBApiProvider(ApiProviderBase):
                   'is_private': 'true'}
         data = urlencode(values).encode('utf-8')
         req = Request(create_url, data, headers)
-        reply = urlopen(req).read()
+        reply = urlopen(req).read().decode('utf-8')
         log.info('Reply result %s' % reply)
         return json.loads(reply)['is_private']
