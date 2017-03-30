@@ -6,7 +6,12 @@
     "users": {
       "ilia": {
         "remote": {
-          "url" : "git@github.com:cshnick/encodedp.git",
+          "provider" : {
+            "name" : "bitbucket",
+            "repo_name" : "encodedp",
+            "cred_file" : "credentials.json"
+          },
+          "url" : "https://cshnick@bitbucket.org/cshnick/encodedp.git",
           "merge_priority" : "remote"
         }
       }

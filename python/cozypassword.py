@@ -145,8 +145,7 @@ class CmdCozyPassword(object):
 
     def process_restore(self):
         log.debug("Attempting to restore")
-        self._resolver.restore()
-        log.debug("Restored, no errors detected")
+        log.debug("Restored, no errors detected, or detected?")
 
     def process_print(self):
         pairs = self._resolver.pairs

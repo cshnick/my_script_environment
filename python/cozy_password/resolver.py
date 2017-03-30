@@ -23,8 +23,14 @@ _CONFIG_TAG = 'configuration'
 _DEF_USER_TAG = 'default_user'
 _USERS_TAG = 'users'
 _REMOTE_TAG = 'remote'
+_PROVIDER_TAG = 'provider'
+_NAME_TAG = 'name'
+_REPO_NAME_TAG = 'repo_name'
+_CRED_FILE_TAG = 'cred_file'
 _URL_TAG = 'url'
 _MERGE_PRIORITY_TAG = 'merge_priority'
+_USERNAME_TAG = 'username'
+_PASSWORD_TAG = 'password'
 _LOCAL_VAL = 'local'
 _REMOTE_VAL = 'remote'
 _MASTER = 'master'
@@ -64,20 +70,19 @@ def profile(method):
 
 def sync_repo(method):
     def deco(self, *args, **kwargs):
-        branch = 'master'
-        repo_path = self._target_dir
         try:
-            repo = git.Repo(repo_path)
-            if self._is_local(repo) and self._remote_update:
-                self._make_remote_repo()
-            elif self._remote_update:
-                repo.remotes.origin.pull()
-                repo.remotes.origin.push()
-            log.info('Init repo, repo exists')
+            # repo exists
+            repo = git.Repo(self._target_dir)
+            if self._needs_upgrade():
+                self._upgrade_to_remote(repo)
         except (git.InvalidGitRepositoryError, git.NoSuchPathError):
-            os.makedirs(self._target_dir, exist_ok=True)
-            self._make_remote_repo() if self._remote_update else self._make_local_repo()
+            # 1s time usage
+            repo = self._init_local()
+            self._upgrade_to_remote(repo)
+
+        self._pull()
         result = method(self, *args, **kwargs)
+        self._push()
         return result
 
     return deco
@@ -131,6 +136,15 @@ class ScandResolver(ResolverBase):
         self._data = {_PAIRS_TAG: {}}
         self._commit_info = None
         self._merge_priority = None
+        self._provider_helper = None
+
+    @property
+    def username(self):
+        return self._username
+
+    @username.setter
+    def username(self, value):
+        self._username = value
 
     @property
     def password(self):
@@ -193,6 +207,9 @@ class ScandResolver(ResolverBase):
         self._username = data[_CONFIG_TAG][_DEF_USER_TAG]
         self.remote_url = data[_CONFIG_TAG][_USERS_TAG][self._username][_REMOTE_TAG][_URL_TAG]
         self._merge_priority = data[_CONFIG_TAG][_USERS_TAG][self._username][_REMOTE_TAG][_MERGE_PRIORITY_TAG]
+        self._provider_helper = BBApiProvider(config=data[_CONFIG_TAG][_USERS_TAG][self._username])
+        self._remote_url = self._provider_helper.url
+        pass
 
     @pull_if_required
     def password_for_name(self, name, default=None):
@@ -303,19 +320,19 @@ class ScandResolver(ResolverBase):
         except FileNotFoundError:
             if self.password:
                 self._save_data()
-                self._commit_add = 'initial_commit'
-                index = Repo(self._target_dir).index
-                index.add([self._ENC_FILENAME])
-                index.commit("Initial commit; %s created" % self._ENC_FILENAME)
+                self._commit_add = 'Empty pairs dict created'
+                self._commit()
             else:
                 raise RuntimeError("Password not set")
 
-    def _commit(self):
-        repo = Repo(self._target_dir)
+    def _commit(self, repo=None, initial=False):
+        repo = repo or Repo(self._target_dir)
         assert repo
         index = repo.index
         modified = [di.a_path or di.b_path for di in index.diff(None) if di.change_type in ['M']]
-        if modified:
+        untracked = [file for file in repo.untracked_files if file == self._ENC_FILENAME]
+        modified.extend(untracked)
+        if modified or initial:
             import datetime
             import socket
             index.add(modified)
@@ -335,9 +352,9 @@ class ScandResolver(ResolverBase):
         for info in repo.remotes.origin.pull(progress=MyProgressPrinter()):
             log.info("Pulled %s to %s" % (info.ref, info.commit.message))
 
-    def _push(self):
-        repo = self._commit()
-        for info in repo.remotes.origin.push():
+    def _push(self, repo=None):
+        repo = repo or self._commit()
+        for info in repo.remotes.origin.push(repo.references[_MASTER]):
             log.info("Pushed %s" % info.local_ref.commit.message)
 
     def _save_data(self):
@@ -349,32 +366,80 @@ class ScandResolver(ResolverBase):
         except DecodeError:
             pass
 
-    def _make_local_repo(self):
+    def _init_local(self):
+        os.makedirs(self._target_dir, exist_ok=True)
         repo = git.Repo.init(self._target_dir)
-        log.info('Created local repository')
+        log.info('Repo init at %s' % repo.working_dir)
         return repo
 
-    def _make_remote_repo(self):
-        branch = _MASTER
-        repo = git.Repo.init(self._target_dir)
-        origin = repo.create_remote('origin', self._remote_url)
-        origin.fetch()
+    def _upgrade_to_remote(self, repo):
+        repo.create_remote('origin', self._remote_url)
+        log.info('origin is %s' % self._remote_url)
+        self.commit_add = "Empty repository"
+        self._commit(repo, initial=True)
+        self._push(repo)
 
-        if self._merge_priority == _LOCAL_VAL:
-            commit1 = repo.remotes.origin.refs.master.commit
-            commit2 = repo.head.commit
-            if commit1 != commit2:
-                merge_base = repo.merge_base(commit1, commit2)
-                repo.index.merge_tree(repo.head, base=merge_base).commit('Merge')
-
-        master = repo.create_head(branch, origin.refs[branch], force=True)
-        master.set_tracking_branch(origin.refs[branch])
-        master.checkout()
-
-        origin.pull()
-        origin.push()
-        return repo
+    def _init_repo(self, method, *args, **kwargs):
+        repo = self._init_local()
+        if self._remote_update:
+            origin = repo.create_remote('origin', self._remote_url)
+            log.info('origin is %s' % self._remote_url)
+            result = method(self, *args, **kwargs)
+            origin.push(repo.refs[_MASTER])
+        else:
+            result = method(self, *args, **kwargs)
+        return result
 
     def _is_local(self, repo=None):
         repo_ref = repo or git.Repo.init(self._target_dir)
         return True if not repo_ref.remotes else False
+
+    def _needs_upgrade(self):
+        return True if self._is_local() and self.remote_update else False
+
+
+class ApiProviderBase(object):
+    def create_repo(self):
+        return False
+
+
+class BBApiProvider(ApiProviderBase):
+    template = 'https://%(username)s@bitbucket.org/%(username)s/%(reponame)s.git'
+
+    def __init__(self, config: dict):
+        super().__init__()
+        self.username = None
+        self.password = None
+        self.reponame = None
+        self.config = config
+        self._init()
+
+    def _init(self):
+        self.reponame = self.config[_REMOTE_TAG][_PROVIDER_TAG][_REPO_NAME_TAG]
+        cred_file = join(dirname(__file__), self.config[_REMOTE_TAG][_PROVIDER_TAG][_CRED_FILE_TAG])
+        with open(cred_file) as crf:
+            crf_config = json.load(crf)
+        self.username = crf_config[_USERNAME_TAG] or None
+        self.password = crf_config[_PASSWORD_TAG] or None
+        self.create_repo()
+
+    @property
+    def url(self):
+        return self.template % {'username': self.username, 'reponame': self.reponame}
+
+    def create_repo(self):
+        from urllib.parse import urlencode
+        from urllib.request import Request, urlopen
+        from base64 import encodebytes
+        create_url = 'https://api.bitbucket.org/1.0/repositories/'
+        encoded = ('%s:%s' % (self.username, self.password)).encode('utf-8')
+        user_password = encodebytes(encoded).decode('utf-8').replace('\n', '')
+        headers = {'Authorization': 'Basic %s' % user_password,
+                   'Content-Type': 'application/x-www-form-urlencoded'}
+        values = {'name': self.reponame,
+                  'is_private': 'true'}
+        data = urlencode(values).encode('utf-8')
+        req = Request(create_url, data, headers)
+        reply = urlopen(req).read()
+        log.info('Reply result %s' % reply)
+        return json.loads(reply)['is_private']
