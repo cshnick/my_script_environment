@@ -124,7 +124,13 @@ def handle_unexists(method):
         except git.GitCommandError as e:
             if 'not found' in str(e):
                 self._provider_helper.create_repo()
+                self._pull()
+            elif 'git pull' in str(e) and e.status == 1:
+                self._empty_repo = True
+
+
             result = method(self, *args, **kwargs)
+
         return result
 
     return deco
@@ -219,7 +225,6 @@ class ScandResolver(ResolverBase):
         with open(config_path, 'r') as cf:
             data = json.load(cf)
         self._username = data[_CONFIG_TAG][_DEF_USER_TAG]
-        self.remote_url = data[_CONFIG_TAG][_USERS_TAG][self._username][_REMOTE_TAG][_URL_TAG]
         self._merge_priority = data[_CONFIG_TAG][_USERS_TAG][self._username][_REMOTE_TAG][_MERGE_PRIORITY_TAG]
         self._provider_helper = BBApiProvider(config=data[_CONFIG_TAG][_USERS_TAG][self._username])
         self._remote_url = self._provider_helper.url
@@ -391,9 +396,9 @@ class ScandResolver(ResolverBase):
     def _upgrade_to_remote(self, repo):
         repo.create_remote('origin', self._remote_url)
         log.info('origin is %s' % self._remote_url)
-        self.commit_add = "Upgrade to remote"
+        self._commit_add = "Upgrade to remote"
         self._commit(repo, initial=True)
-        self._push(repo)
+        #self._push(repo)
 
     def _init_repo(self, method, *args, **kwargs):
         repo = self._init_local()
