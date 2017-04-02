@@ -3,7 +3,7 @@
 import json
 import logging as log
 import os
-from os.path import realpath, join, dirname
+from os.path import realpath, join, dirname, exists
 import time
 from contextlib import contextmanager
 from io import BytesIO
@@ -81,9 +81,9 @@ def sync_repo(method):
             if self.remote_update:
                 self._upgrade_to_remote(repo)
 
-        self._pull() if self.remote_update else self._commit()
+        self._handle_n_pull() if self.remote_update else self._commit()
         result = method(self, *args, **kwargs)
-        self._push() if self.remote_update else self._commit()
+        self._handle_n_push() if self.remote_update else self._commit()
         return result
 
     return deco
@@ -122,15 +122,15 @@ def handle_unexists(method):
         try:
             result = method(self, *args, **kwargs)
         except git.GitCommandError as e:
-            if 'not found' in str(e):
+            if 'not found' in str(e):  # repo not found
                 self._provider_helper.create_repo()
-                self._pull()
             elif 'git pull' in str(e) and e.status == 1:
-                self._empty_repo = True
-
+                self._empty_repo = True  # empty repository
+            if not exists(self._target_path):
+                self._load_to_data()
+            self._push()
 
             result = method(self, *args, **kwargs)
-
         return result
 
     return deco
@@ -361,7 +361,6 @@ class ScandResolver(ResolverBase):
                             socket.gethostname()))
         return repo
 
-    @handle_unexists
     def _pull(self):
         repo = self._commit()
 
@@ -372,11 +371,18 @@ class ScandResolver(ResolverBase):
         for info in repo.remotes.origin.pull(progress=MyProgressPrinter()):
             log.info("Pulled %s to %s" % (info.ref, info.commit.message))
 
-    @handle_unexists
     def _push(self, repo=None):
         repo = repo or self._commit()
         for info in repo.remotes.origin.push(repo.references[_MASTER]):
             log.info("Pushed %s" % info.local_ref.commit.message)
+
+    @handle_unexists
+    def _handle_n_push(self):
+        return self._push()
+
+    @handle_unexists
+    def _handle_n_pull(self):
+        return self._pull()
 
     def _save_data(self):
         self._save(io='buffer')
@@ -398,7 +404,7 @@ class ScandResolver(ResolverBase):
         log.info('origin is %s' % self._remote_url)
         self._commit_add = "Upgrade to remote"
         self._commit(repo, initial=True)
-        #self._push(repo)
+        # self._push(repo)
 
     def _init_repo(self, method, *args, **kwargs):
         repo = self._init_local()
