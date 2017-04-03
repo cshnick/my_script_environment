@@ -33,7 +33,14 @@ _USERNAME_TAG = 'username'
 _PASSWORD_TAG = 'password'
 _LOCAL_VAL = 'local'
 _REMOTE_VAL = 'remote'
+_BITBUCKET_VAl = 'bitbucket'
 _MASTER = 'master'
+
+
+class ApiProviderFactory(object):
+    def provider(self, name, config=None):
+        if name == _BITBUCKET_VAl:
+            return BBApiProvider(config)
 
 
 class ResolverBase(object):
@@ -126,8 +133,6 @@ def handle_unexists(method):
                 self._provider_helper.create_repo()
             elif 'git pull' in str(e) and e.status == 1:
                 self._empty_repo = True  # empty repository
-            if not exists(self._target_path):
-                self._load_to_data()
             self._push()
 
             result = method(self, *args, **kwargs)
@@ -140,6 +145,8 @@ class ScandResolver(ResolverBase):
     _ENC_FILENAME = 'map.json.enc'
     _DEFAULT_STORAGE_NAME = 'encoded'
     _PAIRS_TAG = 'Pairs'
+
+    p_fact = ApiProviderFactory()
 
     def __init__(self):
         """ Create resolver with empty data.
@@ -225,8 +232,12 @@ class ScandResolver(ResolverBase):
         with open(config_path, 'r') as cf:
             data = json.load(cf)
         self._username = data[_CONFIG_TAG][_DEF_USER_TAG]
-        self._merge_priority = data[_CONFIG_TAG][_USERS_TAG][self._username][_REMOTE_TAG][_MERGE_PRIORITY_TAG]
-        self._provider_helper = BBApiProvider(config=data[_CONFIG_TAG][_USERS_TAG][self._username])
+        userconfig = data[_CONFIG_TAG][_USERS_TAG][self._username]
+        self._merge_priority = userconfig[_REMOTE_TAG][_MERGE_PRIORITY_TAG]
+        provider_name = userconfig[_REMOTE_TAG][_PROVIDER_TAG][_NAME_TAG]
+        self._provider_helper = self.p_fact.provider(
+            name=provider_name,
+            config=userconfig)
         self._remote_url = self._provider_helper.url
         pass
 
@@ -299,6 +310,19 @@ class ScandResolver(ResolverBase):
         self._save_data()
         return True
 
+    @push_if_required
+    @commit
+    def from_file(self, filename):
+        try:
+            with open(filename, 'r') as fp:
+                pairs = json.load(fp)
+                if isinstance(pairs, dict):
+                    self._data[_PAIRS_TAG] = pairs
+                self._save_data()
+                self._commit_add = 'loaded from file'
+        except (FileNotFoundError, Exception) as e:  # TODO Correct ex handling
+            print('Invalid file: %s %s' % (filename, e))
+
     @sync_repo
     def update(self):
         self._load_to_data()
@@ -368,7 +392,7 @@ class ScandResolver(ResolverBase):
             def update(self, op_code, cur_count, max_count=None, message=''):
                 log.info("%s percents" % (cur_count / (max_count or 100.0) * 100))
 
-        for info in repo.remotes.origin.pull(progress=MyProgressPrinter()):
+        for info in repo.remotes.origin.pull(repo.references[_MASTER], progress=MyProgressPrinter()):
             log.info("Pulled %s to %s" % (info.ref, info.commit.message))
 
     def _push(self, repo=None):
@@ -395,6 +419,8 @@ class ScandResolver(ResolverBase):
 
     def _init_local(self):
         os.makedirs(self._target_dir, exist_ok=True)
+        if not exists(self._target_path):
+            self._save_data()
         repo = git.Repo.init(self._target_dir)
         log.info('Repo init at %s' % repo.working_dir)
         return repo
@@ -405,17 +431,6 @@ class ScandResolver(ResolverBase):
         self._commit_add = "Upgrade to remote"
         self._commit(repo, initial=True)
         # self._push(repo)
-
-    def _init_repo(self, method, *args, **kwargs):
-        repo = self._init_local()
-        if self._remote_update:
-            origin = repo.create_remote('origin', self._remote_url)
-            log.info('origin is %s' % self._remote_url)
-            result = method(self, *args, **kwargs)
-            origin.push(repo.refs[_MASTER])
-        else:
-            result = method(self, *args, **kwargs)
-        return result
 
     def _is_local(self, repo=None):
         repo_ref = repo or git.Repo.init(self._target_dir)

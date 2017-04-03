@@ -53,8 +53,12 @@ class Const(object):
         Name = "print"
 
     class CheckPasword:
-        Name = "check_password"
-        Key = "Check.Key"
+        Name = 'check_password'
+        Key = 'Check.Key'
+
+    class Load:
+        Name = 'load'
+        File = 'Load.File'
 
 
 class PasswordError(Exception):
@@ -96,6 +100,9 @@ class CmdCozyPassword(object):
 
         parser_chck_password = subparsers.add_parser(Const.CheckPasword.Name, help="Check password")
         parser_chck_password.add_argument(Const.CheckPasword.Key, help='Password to check')
+
+        parser_load = subparsers.add_parser(Const.Load.Name, help="load from uncompressed file")
+        parser_load.add_argument(Const.Load.File, help='Password to check')
 
         self._args = parser.parse_args()
         self._resolver = ScandResolver()
@@ -155,6 +162,10 @@ class CmdCozyPassword(object):
         key = getattr(self._args, Const.CheckPasword.Key, None)
         result = bool(self._resolver.check_password(key))
         print('Password ok' if result else 'Password does not match, try again')
+
+    def process_load(self):
+        filename = getattr(self._args, Const.Load.File, None)
+        result = self._resolver.from_file(filename)
 
     def main(self):
         self._process_args()

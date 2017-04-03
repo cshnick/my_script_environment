@@ -26,6 +26,7 @@ class Resolver(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._resolver = ScandResolver()
+        self._resolver.read_config()
         self._async_pending = False
 
     @run_async
@@ -129,5 +130,5 @@ with open_single_application(appGuid, sys.argv) as app:
     engine.load(QUrl('cpass_gui/main.qml'))
     mwn = engine.rootObjects()[0]
     app.setActivationWindow(mwn)
-    mwn.hide()
+    mwn.show()
     sys.exit(app.exec_())
