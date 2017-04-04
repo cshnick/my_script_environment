@@ -341,6 +341,23 @@ class ScandResolver(ResolverBase):
                                      out_file=enc_dest_io,
                                      password=self.password.encode('utf-8'))
 
+    def _from_bytes(self, stream):
+        with customopen(io='buffer') as enc_io, customopen(io='buffer') as dec_io:
+            enc_io.write(stream)
+            enc_io.seek(0)
+            try:
+                file_cryptor.decrypt(in_file=enc_io,
+                                     out_file=dec_io,
+                                     password=self.password.encode('utf-8'))
+
+                dec_io.seek(0)
+                decoded = dec_io.read().decode('utf-8')
+                return json.loads(decoded)
+            except file_cryptor.EmptyIOError:
+                return
+            except UnicodeDecodeError:
+                raise DecodeError()
+
     def _load(self, *args, **kwargs):
         try:
             with open(self._target_path, "rb") as enc_source_io:
@@ -392,8 +409,19 @@ class ScandResolver(ResolverBase):
             def update(self, op_code, cur_count, max_count=None, message=''):
                 log.info("%s percents" % (cur_count / (max_count or 100.0) * 100))
 
-        for info in repo.remotes.origin.pull(repo.references[_MASTER], progress=MyProgressPrinter()):
+        for info in repo.remotes.origin.fetch(repo.references[_MASTER], progress=MyProgressPrinter()):
             log.info("Pulled %s to %s" % (info.ref, info.commit.message))
+
+        remote_commit = repo.remotes.origin.refs.master.commit
+        local_commit = repo.references[_MASTER].commit
+        if local_commit != remote_commit:
+            enc_bytes = (remote_commit.tree / self._ENC_FILENAME).data_stream.read()
+            remote_data = self._from_bytes(enc_bytes)
+            self._data.update(remote_data) if self._merge_priority == _REMOTE_VAL else remote_data.update(self._data)
+            self._save_data()
+            repo.index.merge_tree(repo.heads.master, base=repo.merge_base(local_commit, remote_commit))
+            self._commit_add = 'Dicts changed, merged with "%s" policy' % self._merge_priority
+            self._commit()
 
     def _push(self, repo=None):
         repo = repo or self._commit()
