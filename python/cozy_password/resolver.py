@@ -385,7 +385,7 @@ class ScandResolver(ResolverBase):
             else:
                 raise RuntimeError("Password not set")
 
-    def _commit(self, repo=None, initial=False):
+    def _commit(self, repo=None, initial=False, **kwargs):
         repo = repo or Repo(self._target_dir)
         assert repo
         index = repo.index
@@ -399,7 +399,7 @@ class ScandResolver(ResolverBase):
             index.commit('%s %s- from %s'
                          % (datetime.datetime.now(),
                             '- ' + self._commit_info + ' ' if self._commit_info else '',
-                            socket.gethostname()))
+                            socket.gethostname()), **kwargs)
         return repo
 
     def _pull(self):
@@ -421,7 +421,7 @@ class ScandResolver(ResolverBase):
             self._save_data()
             repo.index.merge_tree(repo.heads.master, base=repo.merge_base(local_commit, remote_commit))
             self._commit_add = 'Dicts changed, merged with "%s" policy' % self._merge_priority
-            self._commit()
+            self._commit(parent_commits=(local_commit, remote_commit))
 
     def _push(self, repo=None):
         repo = repo or self._commit()
