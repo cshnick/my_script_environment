@@ -474,7 +474,7 @@ class ApiProviderBase(object):
 
 
 class BBApiProvider(ApiProviderBase):
-    template = 'https://%(username)s@bitbucket.org/%(username)s/%(reponame)s.git'
+    template = 'https://%(username)s%(password)s@bitbucket.org/%(username)s/%(reponame)s.git'
 
     def __init__(self, config: dict):
         super().__init__()
@@ -494,7 +494,9 @@ class BBApiProvider(ApiProviderBase):
 
     @property
     def url(self):
-        return self.template % {'username': self.username, 'reponame': self.reponame}
+        return self.template % {'username': self.username,
+         'reponame': self.reponame,
+          'password' : ':' + self.password if self.password else ''}
 
     def create_repo(self):
         from urllib.parse import urlencode
