@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+#PYTHON_ARGCOMPLETE_OK
 
 from sys import version_info
 
@@ -9,6 +10,7 @@ from os.path import basename
 import logging as log
 import json
 from getpass import getpass
+import argcomplete
 
 # python 2.x
 if version_info.major < 3:
@@ -103,6 +105,7 @@ class CmdCozyPassword(object):
 
         parser_load = subparsers.add_parser(Const.Load.Name, help="load from uncompressed file")
         parser_load.add_argument(Const.Load.File, help='Password to check')
+
 
         self._args = parser.parse_args()
         self._resolver = ScandResolver()
