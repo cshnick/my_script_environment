@@ -1,10 +1,11 @@
 import logging as log
 import os
 
+SUBPARSERS = 'subparsers'
+
 log.basicConfig(level=log.DEBUG if 'DEBUG' in os.environ else log.WARNING,
                 format='%(asctime)s - %(levelname)s - %(message)s')
 
-SUBPARSERS = 'subparsers'
 
 class ArgparserBase(object):
     def __init__(self):
@@ -25,5 +26,11 @@ class ArgparserBase(object):
             print(runtimeerr)
         except AttributeError as e:
             print(e)
+        except TypeError as e:
+            print(e)
         except KeyboardInterrupt:
             exit(0)
+
+    @staticmethod
+    def log(*args, **kwargs):
+        log.debug(*args, **kwargs)
