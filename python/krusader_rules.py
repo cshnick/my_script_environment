@@ -9,43 +9,50 @@ import subprocess
 import time
 
 import gobject
+
 gobject.threads_init()
 from dbus import glib
+
 glib.init_threads()
 import dbus
 
+
 class RulesDict:
-    #Callable methods
-    #Begin
+    # Callable methods
+    # Begin
     def newLeftTab(self, args):
         self.__newTab(path=None, side=0)
+
     def newRightTab(self, args):
         self.__newTab(path=None, side=1)
+
     def openInDirectory(self, args):
         local_side = 1 if len(args) < 3 else args[2]
         self.__newTab(path=os.path.abspath(args[1]), side=local_side)
         pass
-    #End callable methods
+
+    # End callable methods
 
     ##### Helper functions #####
-    #0 -left, 1-right
+    # 0 -left, 1-right
     def __newTab(self, path, side):
         if not path:
             path = os.getcwd()
         side_string = 'left' if side == "0" else 'right'
+
         def run_pm():
             return self.bus.get_object(self.krusader_name, '/Instances/krusader/' + side_string + '_manager')
+
         panel_manager = self.__retrieve_with_try(run_pm)
         panel_manager.newTab(path)
         krusdr = self.bus.get_object(self.krusader_name, '/Instances/krusader')
         krusdr.isRunning()
 
-
     def __retrieve_with_try(self, callback):
         try:
             result = callback()
-        except: #krusader is not running
-            subprocess.Popen(self.krusader_path.split(' '), close_fds=True, stderr=open(os.devnull,"w"))
+        except:  # krusader is not running
+            subprocess.Popen(self.krusader_path.split(' '), close_fds=True, stderr=open(os.devnull, "w"))
             self.__wait_krusader()
             result = callback()
 
@@ -60,7 +67,7 @@ class RulesDict:
         raise Exception('Ran out of time waiting for ' + self.krusader_name + 'to start.')
 
     def invoke_rule(self, args):
-        #print 'invoking %s' % name
+        # print 'invoking %s' % name
         self.func = getattr(RulesDict, args[0])
         if self.func:
             self.func(self, args)
@@ -88,6 +95,7 @@ def main():
 
     rd = RulesDict()
     rd.invoke_rule(args.rule_args)
+
 
 if __name__ == "__main__":
     main()

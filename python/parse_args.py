@@ -10,8 +10,8 @@ import os.path
 
 __author__ = 'ilia'
 
-class IAction (argparse.Action):
 
+class IAction(argparse.Action):
     def __print_value_for_option(self, option, value):
         frmt = 'VALUE %s'
         if option == '-I':
@@ -34,7 +34,7 @@ class IAction (argparse.Action):
             frmt = Color('-std=%s').as_white()
         elif option in '-pipe -pthread -c -g'.split():
             frmt = Color(option).as_white()
-        print frmt % value
+        print(frmt % value)
 
     def __call__(self, parser, namespace, values, option_string=None):
         self.__print_value_for_option(option_string, values)
@@ -60,9 +60,12 @@ class CommonParser(object):
         self._parser.add_argument("-std", action=IAction, dest="std_spec", help="std compat mode")
         self._parser.add_argument("-W", action=IAction, dest="w_flags", help="W flags")
         self._parser.add_argument('-O', dest='optimization_val', help='optimization option', action=IAction)
-        self._parser.add_argument('-pipe', dest='pipe_val', help='pipe option', action=IAction, const=True, nargs=0, required=False)
-        self._parser.add_argument('-pthread', dest='pthread_val', help='pthread option', action=IAction, const=True, nargs=0, required=False)
-        self._parser.add_argument('-g', dest='debug_val', help='debug', action=IAction, const=True, nargs=0, required=False)
+        self._parser.add_argument('-pipe', dest='pipe_val', help='pipe option', action=IAction, const=True, nargs=0,
+                                  required=False)
+        self._parser.add_argument('-pthread', dest='pthread_val', help='pthread option', action=IAction, const=True,
+                                  nargs=0, required=False)
+        self._parser.add_argument('-g', dest='debug_val', help='debug', action=IAction, const=True, nargs=0,
+                                  required=False)
         self._args = None
 
     def parse_args(self, str_args):
@@ -72,11 +75,14 @@ class CommonParser(object):
     def args(self):
         return self._args
 
+
 class CompileParser(CommonParser):
     def __init__(self):
-        super(CompileParser ,self).__init__()
-        self._parser.add_argument('file_name',help='filename to parse', nargs=1)
-        self._parser.add_argument('-c', dest='compile_val', help='compile only', action=IAction, const=True, nargs=0, required=False)
+        super(CompileParser, self).__init__()
+        self._parser.add_argument('file_name', help='filename to parse', nargs=1)
+        self._parser.add_argument('-c', dest='compile_val', help='compile only', action=IAction, const=True, nargs=0,
+                                  required=False)
+
 
 class LinkParser(CommonParser):
     def __init__(self):
@@ -84,6 +90,7 @@ class LinkParser(CommonParser):
         self._parser.add_argument('-r', dest='r_flags', help='-r flags', action=IAction)
         self._parser.add_argument('-L', dest='ldir_flags', help='Linker directory flags', action=IAction)
         self._parser.add_argument('-l', dest='lfile_flags', help='Linker library flags', action=IAction)
+
 
 def mergeDicts(dict1, dict2):
     res = defaultdict(list)
@@ -96,6 +103,7 @@ def mergeDicts(dict1, dict2):
 
     return res
 
+
 def merge_args(arg1, arg2):
     if not arg1 and arg2:
         return arg2
@@ -105,6 +113,7 @@ def merge_args(arg1, arg2):
     res = arg1
     return res
 
+
 def parse_target(target_name, file_obj):
     parse_next = False
     invoke_method = None
@@ -113,7 +122,7 @@ def parse_target(target_name, file_obj):
         if ln.endswith('\n'):
             ln = ln[:-1]
         if parse_next:
-            #cludge
+            # cludge
             if ln.startswith('make'):
                 continue
             if invoke_method:
@@ -130,8 +139,8 @@ def parse_target(target_name, file_obj):
 
 
 def parse_compile(target_name, fline):
-    print 'parse compile %s:%s' % (target_name, fline)
-    #clean unused elements
+    print('parse compile %s:%s' % (target_name, fline))
+    # clean unused elements
     fline = fline.replace('c++ ', '', 1)
     fline = fline.replace('.deps/' + target_name + '.o.pp', '', 1)
 
@@ -142,9 +151,9 @@ def parse_compile(target_name, fline):
 
 
 def parse_link(target_name, fline):
-    print 'parse link %s:%s' % (target_name, fline)
+    print('parse link %s:%s' % (target_name, fline))
 
-    #clean unused elements
+    # clean unused elements
     fline = fline.split('-- ', 1)[1]
     to_replace = 'c++ ' + target_name + '.o'
     for v in to_replace.split():
@@ -152,7 +161,6 @@ def parse_link(target_name, fline):
 
     parser = LinkParser()
     t_args = parser.parse_args(fline)
-
 
     return t_args
 
@@ -166,7 +174,7 @@ def main():
     def finished():
         return "--------\nFinished"
 
-    print start()
+    print(start())
 
     m_parser = argparse.ArgumentParser(description='Main parser')
     m_parser.add_argument('--file', help='Filename to retrieve string')
@@ -181,14 +189,14 @@ def main():
             raise Exception("File %s does not exist" % sys.argv[1])
         in_file = open(m_args.file)
 
-    print 'file no %s' % in_file.fileno()
+    print('file no %s' % in_file.fileno())
 
     if m_args.target:
         target = m_args.target
         parse_target(target_name=target, file_obj=in_file)
         return 0
 
-    print finished()
+    print(finished())
 
 
 if __name__ == '__main__':
