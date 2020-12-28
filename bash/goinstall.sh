@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
 function log() {
   echo "$@"
@@ -16,7 +16,7 @@ function blocking_warning() {
 function infer_version() {
   local archive_string="$1"
   archive_string="$(basename $archive_string)"
-  echo ${archive_string#go} | cut -d'.' -f 1,2,3 --output-delimiter='.' 
+  echo ${archive_string#go} | cut -d'.' -f 1,2,3 --output-delimiter='.'
 }
 
 function cleanup() {
@@ -37,9 +37,9 @@ function download_archive() {
   if [[ ! -f "$archive_name" ]] ; then
     echo "File $archive_name does not exist, exiting"
     exit 1
-  fi 
+  fi
   GOARCHIVE="$archive_name"
-} 
+}
 
 
 function clarify_goarchive() {
@@ -52,7 +52,15 @@ function clarify_goarchive() {
   elif [[ "$archive" =~ ^[0-9]{1}\.[0-9]{2}\.[0-9]{1} ]] ; then
     echo "regexp catch"
     download_archive "https://golang.org/dl/go${archive}.linux-amd64.tar.gz"
-  fi 
+  fi
+}
+
+function infer_goarchive() {
+  #Trim parameters
+  GOARCHIVE=$(echo "$PARAMS" | xargs)
+  clarify_goarchive
+  [ ! -f "$GOARCHIVE" ] && echo "File $GOARCHIVE does not exist, returning" && exit 0
+  GOVERSION=$(infer_version $GOARCHIVE)
 }
 
 #checks if uid of parameter is 0
@@ -79,7 +87,7 @@ function extract_go() {
   delete_dir_if_exists "$INSTALL_PATH/$INSTALL_NAME"
   local cmd_pool=(
     "mkdir -p $INSTALL_PATH"
-    "tar -C $INSTALL_PATH -xzf $GOARCHIVE"   
+    "tar -C $INSTALL_PATH -xzf $GOARCHIVE"
   )
   for cmd in "${cmd_pool[@]}" ; do
     [ $(rootreq "$INSTALL_PATH") == true ] && cmd="sudo $cmd"
@@ -92,12 +100,14 @@ function add_environment() {
   [ $(rootreq $(dirname "$profiled")) == true ] && prefix="sudo " || prefix=""
   $prefix bash -c "cat <<EOF >$profiled
 PATH=\"$INSTALL_PATH/$INSTALL_NAME/bin:$PATH\"
-GOOROOT=\"$INSTALL_NAME\"
-GOARCH=amd64
-GOOS=linux
+export GOROOT=\"$INSTALL_PATH/$INSTALL_NAME\"
+export GOPATH=\"$HOME/go\"
+export GOARCH=amd64
+export GOOS=linux
 
 EOF"
 }
+
 
 function install_go() {
   extract_go
@@ -107,7 +117,7 @@ function install_go() {
 function uninstall_go() {
   if [ -f "$ENVIRONMENT_FILE" ] ; then
     local cmd=
-    local gopath=$(sed -nr 's/^PATH=([^\:]+)\/bin\:.*$/\1/p' "$ENVIRONMENT_FILE")
+    local gopath=$(sed -nr 's/^PATH=\"([^\:]+)\/bin\:.*$/\1/p' "$ENVIRONMENT_FILE")
 
     blocking_warning "Will remove $gopath, proceed?"
     cmd="rm -rfv $gopath"
@@ -116,31 +126,40 @@ function uninstall_go() {
 
     cmd="rm -rfv $ENVIRONMENT_FILE"
     [ $(rootreq "$ENVIRONMENT_FILE") == true ] && cmd="sudo $cmd"
-    $cmd 
+    $cmd
   else
     echo "No \"$ENVIRONMENT_FILE\" found, nothing to uninstall"
   fi
 }
+
+#==================
+#script starts here
+#==================
 
 set -o errexit -o pipefail -o noclobber -o nounset
 
 ENVIRONMENT_FILE="/etc/profile.d/go_manual_installation.sh"
 INSTALL=install
 UPDATE=update
-MODES=($INSTALL $UPDATE)
+UNINSTALL=uninstall
+MODES=($INSTALL $UPDATE $UNINSTALL)
 CURRENT_MODE=
 INSTALL_PATH=/usr/local
 INSTALL_NAME=go
+#will be infered in "infer_goarchive"
+GOARCHIVE=
+GOVERSION=
+
 
 TEMP_DIR=
 
 PARAMS=""
 while (( "$#" )); do
   case "$1" in
-    $INSTALL|$UPDATE)
+    $INSTALL|$UPDATE|$UNINSTALL)
       CURRENT_MODE="$1"
       shift
-      ;;  
+      ;;
     -p|--install-path)
       MY_FLAG=0
       shift
@@ -168,14 +187,10 @@ done
 eval set -- "$PARAMS"
 
 trap cleanup EXIT INT
-#Trim parameters
-GOARCHIVE=$(echo "$PARAMS" | xargs)
-clarify_goarchive
-[ ! -f "$GOARCHIVE" ] && echo "File $GOARCHIVE does not exist, returning" && exit 0
-GOVERSION=$(infer_version $GOARCHIVE)
 
 echo "Preparing to $CURRENT_MODE go $GOVERSION"
 if [[ "$CURRENT_MODE" == "install" ]] ; then
+  infer_goarchive
   install_go
 elif [[ "$CURRENT_MODE" == "uninstall" ]] ; then
   uninstall_go
