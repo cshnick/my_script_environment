@@ -65,6 +65,11 @@ function infer_goarchive() {
 
 #checks if uid of parameter is 0
 function rootreq() {
+  # if root - return false at once
+  if [ "$EUID" -eq 0 ] ; then
+    echo false
+  return
+  fi
   local filepath="$1"
   case $(stat -c %u "$filepath") in
     0) echo true ;;
